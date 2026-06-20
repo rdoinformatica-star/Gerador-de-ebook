@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerador de Ebook</title>
+  <style>
+    /* ===== Estilos da tela (não aparecem no PDF) ===== */
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: #f4f5f7;
+      color: #1a1a2e;
+    }
+    header {
+      background: #2d3142;
+      color: #fff;
+      padding: 18px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    header h1 { margin: 0; font-size: 20px; }
+    header p { margin: 4px 0 0; font-size: 13px; opacity: .8; }
+    .btn {
+      border: none;
+      border-radius: 8px;
+      padding: 10px 18px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: filter .15s;
+    }
+    .btn:hover { filter: brightness(1.08); }
+    .btn-primary { background: #ef8354; color: #fff; }
+    .btn-ghost { background: #4f5d75; color: #fff; }
+    .btn-small { padding: 6px 12px; font-size: 13px; }
+    .btn-danger { background: #c1121f; color: #fff; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      padding: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+
+    .panel {
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    }
+    .panel h2 { margin-top: 0; font-size: 16px; color: #4f5d75; }
+
+    label { display: block; font-size: 13px; font-weight: 600; margin: 14px 0 6px; }
+    input[type="text"], textarea {
+      width: 100%;
+      border: 1px solid #d3d6db;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    textarea { min-height: 120px; resize: vertical; }
+    input:focus, textarea:focus { outline: 2px solid #ef8354; border-color: transparent; }
+
+    .chapter {
+      border: 1px solid #e3e5e9;
+      border-radius: 10px;
+      padding: 14px;
+      margin-top: 14px;
+      background: #fafbfc;
+    }
+    .chapter-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .chapter-head span { font-size: 12px; color: #8a8f99; font-weight: 700; }
+
+    /* ===== Preview do ebook na tela ===== */
+    .preview-wrap { background: #e9ebef; border-radius: 10px; padding: 16px; max-height: 70vh; overflow: auto; }
+    .book {
+      background: #fff;
+      padding: 40px 48px;
+      font-family: Georgia, "Times New Roman", serif;
+      line-height: 1.6;
+      color: #222;
+      box-shadow: 0 2px 8px rgba(0,0,0,.1);
+    }
+    .book .cover { text-align: center; padding: 60px 0; border-bottom: 2px solid #eee; margin-bottom: 30px; }
+    .book .cover h1 { font-size: 32px; margin: 0 0 16px; }
+    .book .cover .author { font-size: 18px; color: #666; font-style: italic; }
+    .book .chapter-view { margin-bottom: 34px; }
+    .book .chapter-view h2 { font-size: 22px; border-bottom: 1px solid #eee; padding-bottom: 6px; }
+    .book .chapter-view p { white-space: pre-wrap; }
+    .empty { color: #aaa; font-style: italic; }
+
+    /* ===== Estilos de impressão: o que vira o PDF ===== */
+    @media print {
+      header, .panel.editor, .layout { all: unset; }
+      body { background: #fff; }
+      .no-print { display: none !important; }
+      .preview-wrap { background: none; padding: 0; max-height: none; overflow: visible; }
+      .book { box-shadow: none; padding: 0; }
+      .book .chapter-view { page-break-before: always; }
+      .book .cover { page-break-after: always; border: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="no-print">
+    <div>
+      <h1>📖 Gerador de Ebook</h1>
+      <p>Escreva, veja o preview ao vivo e baixe em PDF — tudo no navegador.</p>
+    </div>
+    <button class="btn btn-primary" onclick="baixarPDF()">⬇️ Baixar PDF</button>
+  </header>
+
+  <div class="layout">
+    <!-- Painel de edição -->
+    <div class="panel editor no-print">
+      <h2>Conteúdo do ebook</h2>
+
+      <label for="titulo">Título do ebook</label>
+      <input type="text" id="titulo" placeholder="Ex: Minha Primeira Aventura" oninput="atualizar()">
+
+      <label for="autor">Autor</label>
+      <input type="text" id="autor" placeholder="Ex: Rafael" oninput="atualizar()">
+
+      <div id="capitulos"></div>
+
+      <button class="btn btn-ghost btn-small" style="margin-top:16px" onclick="adicionarCapitulo()">➕ Adicionar capítulo</button>
+    </div>
+
+    <!-- Painel de preview -->
+    <div class="panel">
+      <h2 class="no-print">Pré-visualização</h2>
+      <div class="preview-wrap">
+        <div class="book" id="preview"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Estado da aplicação: um título, um autor e uma lista de capítulos.
+    let estado = { titulo: "", autor: "", capitulos: [{ titulo: "", texto: "" }] };
+
+    // Carrega o que foi salvo da última vez (se houver).
+    const salvo = localStorage.getItem("ebook");
+    if (salvo) {
+      try { estado = JSON.parse(salvo); } catch (e) { /* ignora dados inválidos */ }
+    }
+
+    // Desenha os campos de capítulo na tela.
+    function renderCapitulos() {
+      const div = document.getElementById("capitulos");
+      div.innerHTML = "";
+      estado.capitulos.forEach((cap, i) => {
+        const bloco = document.createElement("div");
+        bloco.className = "chapter";
+        bloco.innerHTML = `
+          <div class="chapter-head">
+            <span>CAPÍTULO ${i + 1}</span>
+            <button class="btn btn-danger btn-small" onclick="removerCapitulo(${i})">Remover</button>
+          </div>
+          <label>Título do capítulo</label>
+          <input type="text" value="${escapar(cap.titulo)}" oninput="editar(${i}, 'titulo', this.value)" placeholder="Ex: O começo de tudo">
+          <label>Texto</label>
+          <textarea oninput="editar(${i}, 'texto', this.value)" placeholder="Escreva o conteúdo deste capítulo...">${escapar(cap.texto)}</textarea>
+        `;
+        div.appendChild(bloco);
+      });
+    }
+
+    // Escapa caracteres para não quebrar o HTML.
+    function escapar(t) {
+      return (t || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    // Atualiza o preview do ebook e salva o progresso.
+    function atualizar() {
+      estado.titulo = document.getElementById("titulo").value;
+      estado.autor = document.getElementById("autor").value;
+
+      const p = document.getElementById("preview");
+      const temConteudo = estado.titulo || estado.autor || estado.capitulos.some(c => c.titulo || c.texto);
+
+      if (!temConteudo) {
+        p.innerHTML = '<p class="empty">Comece a escrever para ver o preview aqui...</p>';
+      } else {
+        let html = `<div class="cover">
+            <h1>${escapar(estado.titulo) || "Sem título"}</h1>
+            <div class="author">${estado.autor ? "por " + escapar(estado.autor) : ""}</div>
+          </div>`;
+        estado.capitulos.forEach((cap, i) => {
+          if (cap.titulo || cap.texto) {
+            html += `<div class="chapter-view">
+                <h2>${escapar(cap.titulo) || "Capítulo " + (i + 1)}</h2>
+                <p>${escapar(cap.texto)}</p>
+              </div>`;
+          }
+        });
+        p.innerHTML = html;
+      }
+      localStorage.setItem("ebook", JSON.stringify(estado));
+    }
+
+    function editar(i, campo, valor) {
+      estado.capitulos[i][campo] = valor;
+      atualizar();
+    }
+
+    function adicionarCapitulo() {
+      estado.capitulos.push({ titulo: "", texto: "" });
+      renderCapitulos();
+      atualizar();
+    }
+
+    function removerCapitulo(i) {
+      estado.capitulos.splice(i, 1);
+      if (estado.capitulos.length === 0) estado.capitulos.push({ titulo: "", texto: "" });
+      renderCapitulos();
+      atualizar();
+    }
+
+    // Abre o diálogo de impressão do navegador (escolha "Salvar como PDF").
+    function baixarPDF() {
+      const temConteudo = estado.titulo || estado.capitulos.some(c => c.titulo || c.texto);
+      if (!temConteudo) {
+        alert("Escreva pelo menos um título ou capítulo antes de gerar o PDF.");
+        return;
+      }
+      window.print();
+    }
+
+    // Preenche os campos iniciais com o estado carregado e desenha tudo.
+    document.getElementById("titulo").value = estado.titulo;
+    document.getElementById("autor").value = estado.autor;
+    renderCapitulos();
+    atualizar();
+  </script>
+</body>
+</html>
