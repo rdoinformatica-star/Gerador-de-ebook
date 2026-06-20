@@ -166,8 +166,8 @@
     <div class="card no-print">
       <details id="config-api">
         <summary>⚙️ Configurar chave da API (necessário na primeira vez)</summary>
-        <label for="apikey">Sua chave de API da Anthropic</label>
-        <input type="password" id="apikey" placeholder="sk-ant-...">
+        <label for="apikey">Sua chave de API do Google Gemini (gratuita)</label>
+        <input type="password" id="apikey" placeholder="AIza...">
         <button class="btn btn-ghost btn-small" style="margin-top:10px" onclick="salvarChave()">Salvar chave</button>
         <div class="warn">
           <strong>⚠️ Importante:</strong> a chave fica salva apenas neste navegador (no seu computador).
@@ -175,7 +175,8 @@
           deixar clientes usarem, será preciso um servidor que guarde a chave com segurança —
           nunca distribua um site com sua chave embutida.
           <br><br>
-          Crie sua chave em: <strong>console.anthropic.com</strong> → API Keys.
+          Crie sua chave grátis em: <strong>aistudio.google.com/apikey</strong> → "Create API key".
+          O plano gratuito tem limite diário de uso, suficiente para testar.
         </div>
       </details>
     </div>
@@ -256,10 +257,10 @@
 
   <script>
     // ===== Configuração da chave =====
-    document.getElementById("apikey").value = localStorage.getItem("anthropic_key") || "";
+    document.getElementById("apikey").value = localStorage.getItem("gemini_key") || "";
     function salvarChave() {
       const k = document.getElementById("apikey").value.trim();
-      localStorage.setItem("anthropic_key", k);
+      localStorage.setItem("gemini_key", k);
       alert(k ? "Chave salva neste navegador!" : "Chave removida.");
     }
 
@@ -270,50 +271,47 @@
 
     // ===== Esquema JSON que a IA deve devolver =====
     const SCHEMA = {
-      type: "object",
+      type: "OBJECT",
       properties: {
-        destino: { type: "string" },
-        resumo: { type: "string" },
+        destino: { type: "STRING" },
+        resumo: { type: "STRING" },
         dias: {
-          type: "array",
+          type: "ARRAY",
           items: {
-            type: "object",
+            type: "OBJECT",
             properties: {
-              dia: { type: "integer" },
-              titulo: { type: "string" },
+              dia: { type: "INTEGER" },
+              titulo: { type: "STRING" },
               atividades: {
-                type: "array",
+                type: "ARRAY",
                 items: {
-                  type: "object",
+                  type: "OBJECT",
                   properties: {
-                    periodo: { type: "string" },
-                    nome: { type: "string" },
-                    tipo: { type: "string" },
-                    descricao: { type: "string" },
-                    preco_estimado: { type: "string" },
-                    termo_foto: { type: "string" }
+                    periodo: { type: "STRING" },
+                    nome: { type: "STRING" },
+                    tipo: { type: "STRING" },
+                    descricao: { type: "STRING" },
+                    preco_estimado: { type: "STRING" },
+                    termo_foto: { type: "STRING" }
                   },
-                  required: ["periodo", "nome", "tipo", "descricao", "preco_estimado", "termo_foto"],
-                  additionalProperties: false
+                  required: ["periodo", "nome", "tipo", "descricao", "preco_estimado", "termo_foto"]
                 }
               }
             },
-            required: ["dia", "titulo", "atividades"],
-            additionalProperties: false
+            required: ["dia", "titulo", "atividades"]
           }
         },
-        dica_orcamento: { type: "string" }
+        dica_orcamento: { type: "STRING" }
       },
-      required: ["destino", "resumo", "dias", "dica_orcamento"],
-      additionalProperties: false
+      required: ["destino", "resumo", "dias", "dica_orcamento"]
     };
 
     // ===== Gerar roteiro =====
     async function gerar() {
-      const apiKey = localStorage.getItem("anthropic_key");
+      const apiKey = localStorage.getItem("gemini_key");
       if (!apiKey) {
         document.getElementById("config-api").open = true;
-        alert("Configure sua chave de API primeiro (no topo da página).");
+        alert("Configure sua chave de API do Google Gemini primeiro (no topo da página).");
         return;
       }
 
@@ -349,35 +347,36 @@ Instruções:
       document.getElementById("btn-gerar").disabled = true;
 
       try {
-        const resp = await fetch("https://api.anthropic.com/v1/messages", {
+        const modelo = "gemini-2.0-flash";
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${encodeURIComponent(apiKey)}`;
+        const resp = await fetch(url, {
           method: "POST",
-          headers: {
-            "content-type": "application/json",
-            "x-api-key": apiKey,
-            "anthropic-version": "2023-06-01",
-            "anthropic-dangerous-direct-browser-access": "true"
-          },
+          headers: { "content-type": "application/json" },
           body: JSON.stringify({
-            model: "claude-opus-4-8",
-            max_tokens: 16000,
-            messages: [{ role: "user", content: prompt }],
-            output_config: { format: { type: "json_schema", schema: SCHEMA } }
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              responseMimeType: "application/json",
+              responseSchema: SCHEMA,
+              maxOutputTokens: 8192
+            }
           })
         });
 
         if (!resp.ok) {
           const txt = await resp.text();
           let msg = "Erro " + resp.status;
-          if (resp.status === 401) msg = "Chave de API inválida. Verifique no console.anthropic.com.";
-          else if (resp.status === 429) msg = "Limite de uso atingido. Tente novamente em instantes.";
-          else if (resp.status === 400) msg = "Pedido inválido: " + txt;
+          if (resp.status === 400) msg = "Chave de API inválida ou pedido incorreto. Confira a chave no aistudio.google.com/apikey. (" + txt + ")";
+          else if (resp.status === 403) msg = "Acesso negado. Verifique se a chave está correta e ativa.";
+          else if (resp.status === 429) msg = "Limite gratuito atingido por enquanto. Aguarde alguns minutos e tente novamente.";
           else msg += ": " + txt;
           throw new Error(msg);
         }
 
         const data = await resp.json();
-        const bloco = data.content.find(b => b.type === "text");
-        const roteiro = JSON.parse(bloco.text);
+        const texto = data.candidates && data.candidates[0] &&
+          data.candidates[0].content && data.candidates[0].content.parts[0].text;
+        if (!texto) throw new Error("A IA não retornou um roteiro. Tente novamente.");
+        const roteiro = JSON.parse(texto);
 
         renderRoteiro(roteiro);
         mostrar("roteiro");
