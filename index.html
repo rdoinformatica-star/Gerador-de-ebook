@@ -290,6 +290,11 @@
         </div>
       </div>
 
+      <label style="display:flex; align-items:center; gap:8px; margin-top:16px; cursor:pointer">
+        <input type="checkbox" id="aovivo" checked style="width:auto; margin:0">
+        🌐 Buscar dados ao vivo na web (preços e novidades mais atuais)
+      </label>
+
       <button class="btn btn-primary" id="btn-gerar" onclick="gerar()">✨ Gerar meu roteiro</button>
     </div>
 
@@ -456,6 +461,7 @@
       const ritmo = document.getElementById("ritmo").value;
       const orcamento = document.getElementById("orcamento").value;
       const mes = document.getElementById("mes").value;
+      const aoVivo = document.getElementById("aovivo").checked;
 
       const listaInteresses = interesses.length ? interesses.join(", ") : "interesses gerais de turismo";
 
@@ -480,23 +486,37 @@ Instruções:
 - Em "termo_foto", coloque o nome do local exatamente como apareceria na Wikipédia para buscar uma foto (ex: "Museu do Louvre", "Torre Eiffel", "Montmartre").
 - Responda inteiramente em português.`;
 
+      let promptFinal = prompt;
+      if (aoVivo) {
+        promptFinal += `
+
+Use a busca na web para trazer informações ATUAIS (preços recentes, novidades e eventos do período da viagem).
+
+Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem texto antes ou depois — exatamente nesta estrutura:
+{"destino": "texto", "resumo": "texto", "dias": [{"dia": 1, "titulo": "texto", "regiao": "texto", "atividades": [{"periodo": "texto", "nome": "texto", "tipo": "texto", "descricao": "texto", "preco_estimado": "texto", "termo_foto": "texto"}]}], "dica_orcamento": "texto"}`;
+      }
+
       mostrar("loading");
       document.getElementById("btn-gerar").disabled = true;
 
       try {
         const modelo = "gemini-2.5-flash";
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${encodeURIComponent(apiKey)}`;
+        const corpo = {
+          contents: [{ parts: [{ text: promptFinal }] }],
+          generationConfig: { maxOutputTokens: 8192 }
+        };
+        if (aoVivo) {
+          corpo.tools = [{ google_search: {} }]; // busca na web (grounding)
+          // com busca ativa não dá para usar responseSchema; pedimos o JSON no prompt
+        } else {
+          corpo.generationConfig.responseMimeType = "application/json";
+          corpo.generationConfig.responseSchema = SCHEMA; // formato garantido
+        }
         const resp = await fetch(url, {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              responseMimeType: "application/json",
-              responseSchema: SCHEMA,
-              maxOutputTokens: 8192
-            }
-          })
+          body: JSON.stringify(corpo)
         });
 
         if (!resp.ok) {
@@ -511,9 +531,17 @@ Instruções:
         }
 
         const data = await resp.json();
-        const texto = data.candidates && data.candidates[0] &&
-          data.candidates[0].content && data.candidates[0].content.parts[0].text;
+        const cand = data.candidates && data.candidates[0];
+        let texto = "";
+        if (cand && cand.content && cand.content.parts) {
+          texto = cand.content.parts.map(p => p.text || "").join("");
+        }
         if (!texto) throw new Error("A IA não retornou um roteiro. Tente novamente.");
+        // limpa cercas de código e pega só o objeto JSON (do primeiro { ao último })
+        texto = texto.trim()
+          .replace(/^```json\s*/i, "").replace(/^```\s*/, "").replace(/```\s*$/, "").trim();
+        const ini = texto.indexOf("{"), fim = texto.lastIndexOf("}");
+        if (ini >= 0 && fim > ini) texto = texto.slice(ini, fim + 1);
         const roteiro = JSON.parse(texto);
 
         roteiroAtual = roteiro;
