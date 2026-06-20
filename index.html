@@ -185,6 +185,13 @@
     .salvo-item:first-child { border-top: none; }
     .salvo-item small { color: #6b7a8d; }
 
+    .proximos { margin-top: 10px; background: #f4faf4; border: 1px solid #dceadc; border-radius: 9px; padding: 9px 12px; }
+    .proximos-titulo { font-size: 11px; font-weight: 800; color: #2e7d32; text-transform: uppercase; letter-spacing: .5px; }
+    .proximos ul { margin: 6px 0 0; padding-left: 0; list-style: none; }
+    .proximos li { font-size: 13px; line-height: 1.55; color: #33424f; margin: 4px 0; }
+    .map-mini { color: #1565c0; text-decoration: none; font-weight: 600; white-space: nowrap; }
+    .map-mini:hover { text-decoration: underline; }
+
     @media print {
       header, .no-print { display: none !important; }
       body { background: #fff; }
@@ -424,9 +431,21 @@
                     tipo: { type: "STRING" },
                     descricao: { type: "STRING" },
                     preco_estimado: { type: "STRING" },
-                    termo_foto: { type: "STRING" }
+                    termo_foto: { type: "STRING" },
+                    proximos: {
+                      type: "ARRAY",
+                      items: {
+                        type: "OBJECT",
+                        properties: {
+                          nome: { type: "STRING" },
+                          tipo: { type: "STRING" },
+                          nota: { type: "STRING" }
+                        },
+                        required: ["nome", "tipo", "nota"]
+                      }
+                    }
                   },
-                  required: ["periodo", "nome", "tipo", "descricao", "preco_estimado", "termo_foto"]
+                  required: ["periodo", "nome", "tipo", "descricao", "preco_estimado", "termo_foto", "proximos"]
                 }
               }
             },
@@ -484,6 +503,7 @@ Instruções:
 - Em "descricao", escreva 2 a 3 frases envolventes sobre o local.
 - Em "preco_estimado", dê uma faixa aproximada na moeda local (deixe claro que é uma estimativa, ex: "~€22" ou "€30-50").
 - Em "termo_foto", coloque o nome do local exatamente como apareceria na Wikipédia para buscar uma foto (ex: "Museu do Louvre", "Torre Eiffel", "Montmartre").
+- Em "proximos", liste de 2 a 3 sugestões IMPERDÍVEIS que ficam BEM PERTO daquele local (a poucos minutos a pé): cafés especiais, comidas/restaurantes típicos e lojas/compras imperdíveis. Para cada uma: "nome" (nome real do estabelecimento ou lugar), "tipo" ("Café", "Comida" ou "Compras") e "nota" (uma frase curta dizendo por que vale a pena). Devem ser locais reais e próximos da atividade, não genéricos.
 - Responda inteiramente em português.`;
 
       let promptFinal = prompt;
@@ -493,7 +513,7 @@ Instruções:
 Use a busca na web para trazer informações ATUAIS (preços recentes, novidades e eventos do período da viagem).
 
 Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem texto antes ou depois — exatamente nesta estrutura:
-{"destino": "texto", "resumo": "texto", "dias": [{"dia": 1, "titulo": "texto", "regiao": "texto", "atividades": [{"periodo": "texto", "nome": "texto", "tipo": "texto", "descricao": "texto", "preco_estimado": "texto", "termo_foto": "texto"}]}], "dica_orcamento": "texto"}`;
+{"destino": "texto", "resumo": "texto", "dias": [{"dia": 1, "titulo": "texto", "regiao": "texto", "atividades": [{"periodo": "texto", "nome": "texto", "tipo": "texto", "descricao": "texto", "preco_estimado": "texto", "termo_foto": "texto", "proximos": [{"nome": "texto", "tipo": "Café", "nota": "texto"}]}]}], "dica_orcamento": "texto"}`;
       }
 
       mostrar("loading");
@@ -575,6 +595,24 @@ Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem tex
           imgsParaBuscar.push({ id: imgId, termo: a.termo_foto });
           const mapsUrl = "https://www.google.com/maps/search/?api=1&query=" +
             encodeURIComponent(a.nome + ", " + r.destino);
+
+          let proximosHtml = "";
+          if (a.proximos && a.proximos.length) {
+            const icone = (t) => {
+              const s = (t || "").toLowerCase();
+              if (s.includes("caf")) return "☕";
+              if (s.includes("comp") || s.includes("loja") || s.includes("shop")) return "🛍️";
+              if (s.includes("comid") || s.includes("rest") || s.includes("gastr") || s.includes("bar") || s.includes("doc") || s.includes("sorv")) return "🍴";
+              return "📍";
+            };
+            proximosHtml = `<div class="proximos"><span class="proximos-titulo">✨ Perto daqui</span><ul>` +
+              a.proximos.map(p => {
+                const u = "https://www.google.com/maps/search/?api=1&query=" +
+                  encodeURIComponent(p.nome + ", " + r.destino);
+                return `<li>${icone(p.tipo)} <strong>${escapar(p.nome)}</strong> — ${escapar(p.nota)} <a class="map-mini no-print" href="${u}" target="_blank" rel="noopener">ver no mapa</a></li>`;
+              }).join("") + `</ul></div>`;
+          }
+
           html += `<div class="atividade">
               <div class="sem-foto" id="${imgId}">carregando foto...</div>
               <div class="atividade-info">
@@ -586,6 +624,7 @@ Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem tex
                 <h4>${escapar(a.nome)}</h4>
                 <p>${escapar(a.descricao)}</p>
                 <a class="map-link no-print" href="${mapsUrl}" target="_blank" rel="noopener">📍 Ver no mapa</a>
+                ${proximosHtml}
               </div>
             </div>`;
         });
