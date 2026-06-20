@@ -145,6 +145,19 @@
 
     .dica { background: #e8f5e9; border-radius: 11px; padding: 16px; font-size: 14px; color: #1b5e20; margin-top: 8px; }
 
+    .map-link {
+      display: inline-block;
+      margin-top: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #1565c0;
+      text-decoration: none;
+      border: 1px solid #bbdefb;
+      border-radius: 8px;
+      padding: 5px 11px;
+    }
+    .map-link:hover { background: #e3f2fd; }
+
     @media print {
       header, .no-print { display: none !important; }
       body { background: #fff; }
@@ -413,6 +426,8 @@ Instruções:
         dia.atividades.forEach(a => {
           const imgId = "img-" + imgsParaBuscar.length;
           imgsParaBuscar.push({ id: imgId, termo: a.termo_foto });
+          const mapsUrl = "https://www.google.com/maps/search/?api=1&query=" +
+            encodeURIComponent(a.nome + ", " + r.destino);
           html += `<div class="atividade">
               <div class="sem-foto" id="${imgId}">carregando foto...</div>
               <div class="atividade-info">
@@ -423,6 +438,7 @@ Instruções:
                 </div>
                 <h4>${escapar(a.nome)}</h4>
                 <p>${escapar(a.descricao)}</p>
+                <a class="map-link no-print" href="${mapsUrl}" target="_blank" rel="noopener">📍 Ver no mapa</a>
               </div>
             </div>`;
         });
