@@ -58,6 +58,29 @@
     }
     .chip.active { background: #168aad; color: #fff; border-color: #168aad; }
 
+    .sugestoes {
+      position: absolute;
+      left: 0; right: 0;
+      top: 100%;
+      background: #fff;
+      border: 1px solid #cfd8e3;
+      border-top: none;
+      border-radius: 0 0 9px 9px;
+      z-index: 30;
+      max-height: 230px;
+      overflow-y: auto;
+      display: none;
+      box-shadow: 0 8px 18px rgba(0,0,0,.12);
+    }
+    .sugestao {
+      padding: 10px 12px;
+      font-size: 14px;
+      cursor: pointer;
+      border-top: 1px solid #eef2f6;
+    }
+    .sugestao:first-child { border-top: none; }
+    .sugestao:hover { background: #e8f4fa; }
+
     .btn {
       border: none;
       border-radius: 10px;
@@ -200,9 +223,10 @@
       <h2>Conte sobre a viagem</h2>
 
       <div class="row">
-        <div>
+        <div style="position:relative">
           <label for="destino">Destino</label>
-          <input type="text" id="destino" placeholder="Ex: Paris, França">
+          <input type="text" id="destino" placeholder="Ex: Paris, França" autocomplete="off">
+          <div id="sugestoes" class="sugestoes"></div>
         </div>
         <div>
           <label for="dias">Número de dias</label>
@@ -295,6 +319,47 @@
     document.querySelectorAll("#chips .chip").forEach(c => {
       c.addEventListener("click", () => c.classList.toggle("active"));
     });
+
+    // ===== Autocompletar destino (Photon/OpenStreetMap, gratuito) =====
+    const destinoInput = document.getElementById("destino");
+    const sugestoesEl = document.getElementById("sugestoes");
+    let buscaTimer = null;
+
+    destinoInput.addEventListener("input", () => {
+      const q = destinoInput.value.trim();
+      clearTimeout(buscaTimer);
+      if (q.length < 2) { sugestoesEl.style.display = "none"; return; }
+      buscaTimer = setTimeout(() => buscarDestinos(q), 300); // espera parar de digitar
+    });
+    destinoInput.addEventListener("blur", () => {
+      setTimeout(() => { sugestoesEl.style.display = "none"; }, 200);
+    });
+
+    async function buscarDestinos(q) {
+      try {
+        const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=8`;
+        const r = await fetch(url);
+        const j = await r.json();
+        const tiposBons = ["city", "town", "village", "state", "region", "country", "county", "municipality"];
+        const itens = (j.features || [])
+          .map(f => f.properties)
+          .filter(p => p && p.name && (p.osm_key === "place" || p.osm_key === "boundary" || tiposBons.includes(p.type)))
+          .map(p => [p.name, p.state, p.country].filter(Boolean).join(", "));
+        const unicos = [...new Set(itens)].slice(0, 6);
+        if (!unicos.length) { sugestoesEl.style.display = "none"; return; }
+        sugestoesEl.innerHTML = unicos.map(t => `<div class="sugestao">${escapar(t)}</div>`).join("");
+        [...sugestoesEl.children].forEach((el, i) => {
+          // mousedown dispara antes do blur, garantindo que o clique funcione
+          el.addEventListener("mousedown", () => {
+            destinoInput.value = unicos[i];
+            sugestoesEl.style.display = "none";
+          });
+        });
+        sugestoesEl.style.display = "block";
+      } catch (e) {
+        sugestoesEl.style.display = "none";
+      }
+    }
 
     // ===== Esquema JSON que a IA deve devolver =====
     const SCHEMA = {
