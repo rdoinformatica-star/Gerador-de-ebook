@@ -169,6 +169,7 @@
         <label for="apikey">Sua chave de API do Google Gemini (gratuita)</label>
         <input type="password" id="apikey" placeholder="AIza...">
         <button class="btn btn-ghost btn-small" style="margin-top:10px" onclick="salvarChave()">Salvar chave</button>
+        <span id="status-chave" style="margin-left:10px; font-size:13px; font-weight:700; color:#2e7d32"></span>
         <div class="warn">
           <strong>⚠️ Importante:</strong> a chave fica salva apenas neste navegador (no seu computador).
           Esta versão é um <strong>protótipo para você testar</strong>. Para publicar a ferramenta e
@@ -258,10 +259,13 @@
   <script>
     // ===== Configuração da chave =====
     document.getElementById("apikey").value = localStorage.getItem("gemini_key") || "";
+    if (localStorage.getItem("gemini_key")) {
+      document.getElementById("status-chave").textContent = "✓ Chave salva!";
+    }
     function salvarChave() {
       const k = document.getElementById("apikey").value.trim();
       localStorage.setItem("gemini_key", k);
-      alert(k ? "Chave salva neste navegador!" : "Chave removida.");
+      document.getElementById("status-chave").textContent = k ? "✓ Chave salva!" : "Chave removida.";
     }
 
     // ===== Seleção de interesses =====
@@ -311,12 +315,17 @@
       const apiKey = localStorage.getItem("gemini_key");
       if (!apiKey) {
         document.getElementById("config-api").open = true;
-        alert("Configure sua chave de API do Google Gemini primeiro (no topo da página).");
+        document.getElementById("erro-msg").textContent = "Configure sua chave do Google Gemini primeiro (no topo da página) e clique em Salvar chave.";
+        mostrar("erro");
         return;
       }
 
       const destino = document.getElementById("destino").value.trim();
-      if (!destino) { alert("Informe o destino da viagem."); return; }
+      if (!destino) {
+        document.getElementById("erro-msg").textContent = "Informe o destino da viagem antes de gerar.";
+        mostrar("erro");
+        return;
+      }
 
       const dias = document.getElementById("dias").value || "3";
       const interesses = [...document.querySelectorAll("#chips .chip.active")].map(c => c.dataset.v);
