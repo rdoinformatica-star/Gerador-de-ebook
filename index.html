@@ -309,6 +309,7 @@
             properties: {
               dia: { type: "INTEGER" },
               titulo: { type: "STRING" },
+              regiao: { type: "STRING" },
               atividades: {
                 type: "ARRAY",
                 items: {
@@ -325,7 +326,7 @@
                 }
               }
             },
-            required: ["dia", "titulo", "atividades"]
+            required: ["dia", "titulo", "regiao", "atividades"]
           }
         },
         dica_orcamento: { type: "STRING" }
@@ -368,6 +369,8 @@ Ritmo desejado: ${ritmo}
 Perfil de orçamento: ${orcamento}
 
 Instruções:
+- MUITO IMPORTANTE — organize cada dia GEOGRAFICAMENTE: agrupe no mesmo dia atividades que ficam na mesma região/bairro e coloque-as em uma ordem lógica de deslocamento, de modo que a pessoa vá de um ponto ao próximo que esteja perto, caminhando ou com transporte curto, sem ficar atravessando a cidade para frente e para trás. Escolha restaurantes próximos das atrações daquele mesmo dia.
+- Em "regiao", informe o bairro ou a zona principal que o dia cobre (ex: "Belém", "Centro Histórico", "Montmartre").
 - Para cada dia, distribua atividades entre manhã, tarde e noite, alinhadas aos interesses informados.
 - Inclua restaurantes, atrações e experiências reais e conhecidas do destino.
 - Em "descricao", escreva 2 a 3 frases envolventes sobre o local.
@@ -431,8 +434,11 @@ Instruções:
       const imgsParaBuscar = [];
 
       r.dias.forEach(dia => {
+        const rotaUrl = "https://www.google.com/maps/dir/" +
+          dia.atividades.map(a => encodeURIComponent(a.nome + ", " + r.destino)).join("/");
         html += `<div class="dia">
-            <div class="dia-titulo">Dia ${dia.dia} — ${escapar(dia.titulo)}</div>`;
+            <div class="dia-titulo">Dia ${dia.dia} — ${escapar(dia.titulo)}${dia.regiao ? ' · <span style="font-weight:400;opacity:.85">' + escapar(dia.regiao) + '</span>' : ''}</div>
+            <a class="map-link no-print" href="${rotaUrl}" target="_blank" rel="noopener" style="margin:0 0 12px;">🧭 Ver rota do dia no mapa</a>`;
         dia.atividades.forEach(a => {
           const imgId = "img-" + imgsParaBuscar.length;
           imgsParaBuscar.push({ id: imgId, termo: a.termo_foto });
