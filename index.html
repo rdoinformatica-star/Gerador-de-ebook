@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerador de Roteiro de Viagem</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: #f0f4f8;
+      color: #1a2238;
+    }
+    header {
+      background: linear-gradient(135deg, #1e6091, #168aad);
+      color: #fff;
+      padding: 22px 24px;
+    }
+    header h1 { margin: 0; font-size: 22px; }
+    header p { margin: 6px 0 0; font-size: 14px; opacity: .9; }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 22px;
+      box-shadow: 0 1px 6px rgba(0,0,0,.08);
+      margin-bottom: 20px;
+    }
+    .card h2 { margin-top: 0; font-size: 17px; color: #1e6091; }
+
+    label { display: block; font-size: 13px; font-weight: 600; margin: 14px 0 6px; }
+    input[type="text"], input[type="number"], input[type="password"], select, textarea {
+      width: 100%;
+      border: 1px solid #cfd8e3;
+      border-radius: 9px;
+      padding: 11px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    input:focus, select:focus, textarea:focus { outline: 2px solid #168aad; border-color: transparent; }
+
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 640px) { .row { grid-template-columns: 1fr; } }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+    .chip {
+      border: 1px solid #cfd8e3;
+      border-radius: 20px;
+      padding: 8px 14px;
+      font-size: 13px;
+      cursor: pointer;
+      user-select: none;
+      background: #fff;
+      transition: all .12s;
+    }
+    .chip.active { background: #168aad; color: #fff; border-color: #168aad; }
+
+    .btn {
+      border: none;
+      border-radius: 10px;
+      padding: 13px 22px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: filter .15s;
+    }
+    .btn:hover { filter: brightness(1.08); }
+    .btn:disabled { opacity: .55; cursor: not-allowed; }
+    .btn-primary { background: #ef6c00; color: #fff; width: 100%; margin-top: 18px; }
+    .btn-ghost { background: #5a7184; color: #fff; }
+    .btn-small { padding: 8px 14px; font-size: 13px; }
+
+    .warn {
+      background: #fff4e5;
+      border: 1px solid #ffcc80;
+      border-radius: 9px;
+      padding: 12px 14px;
+      font-size: 13px;
+      color: #7a4a00;
+      margin-top: 12px;
+    }
+    .muted { font-size: 12px; color: #6b7a8d; margin-top: 6px; }
+
+    details summary { cursor: pointer; font-weight: 600; color: #1e6091; }
+
+    /* Loading */
+    #loading { display: none; text-align: center; padding: 40px 20px; }
+    .spinner {
+      width: 42px; height: 42px;
+      border: 4px solid #cfe3ee;
+      border-top-color: #168aad;
+      border-radius: 50%;
+      margin: 0 auto 14px;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #erro { display: none; }
+    .erro-box { background: #fdecea; border: 1px solid #f5c6c2; color: #8a1c12; border-radius: 9px; padding: 14px; font-size: 14px; }
+
+    /* Roteiro */
+    #roteiro { display: none; }
+    .roteiro-cabecalho { text-align: center; margin-bottom: 24px; }
+    .roteiro-cabecalho h2 { font-size: 26px; margin: 0 0 8px; color: #1a2238; }
+    .roteiro-cabecalho p { font-size: 15px; color: #45586b; max-width: 700px; margin: 0 auto; }
+
+    .dia { margin-bottom: 28px; }
+    .dia-titulo {
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      background: #1e6091;
+      padding: 10px 16px;
+      border-radius: 9px;
+      margin-bottom: 14px;
+    }
+    .atividade {
+      display: flex;
+      gap: 16px;
+      border: 1px solid #e3eaf1;
+      border-radius: 11px;
+      padding: 14px;
+      margin-bottom: 12px;
+      background: #fafcfe;
+    }
+    @media (max-width: 560px) { .atividade { flex-direction: column; } }
+    .atividade img, .atividade .sem-foto {
+      width: 150px; height: 110px;
+      object-fit: cover;
+      border-radius: 8px;
+      flex-shrink: 0;
+      background: #e3eaf1;
+    }
+    .sem-foto { display: flex; align-items: center; justify-content: center; color: #9aa9b8; font-size: 12px; }
+    .atividade-info h4 { margin: 0 0 4px; font-size: 16px; }
+    .tags { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+    .tag { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 12px; text-transform: uppercase; letter-spacing: .3px; }
+    .tag-periodo { background: #e3f2fd; color: #1565c0; }
+    .tag-tipo { background: #fff3e0; color: #e65100; }
+    .tag-preco { background: #e8f5e9; color: #2e7d32; }
+    .atividade-info p { margin: 0; font-size: 14px; line-height: 1.5; color: #34495e; }
+
+    .dica { background: #e8f5e9; border-radius: 11px; padding: 16px; font-size: 14px; color: #1b5e20; margin-top: 8px; }
+
+    @media print {
+      header, .no-print { display: none !important; }
+      body { background: #fff; }
+      .card { box-shadow: none; padding: 0; }
+      #roteiro { display: block !important; }
+      .atividade { break-inside: avoid; }
+      .dia { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <header class="no-print">
+    <h1>🗺️ Gerador de Roteiro de Viagem</h1>
+    <p>Diga seu destino e seus gostos — a IA monta um roteiro personalizado com fotos e estimativa de preços.</p>
+  </header>
+
+  <div class="container">
+    <!-- Configuração da chave de API -->
+    <div class="card no-print">
+      <details id="config-api">
+        <summary>⚙️ Configurar chave da API (necessário na primeira vez)</summary>
+        <label for="apikey">Sua chave de API da Anthropic</label>
+        <input type="password" id="apikey" placeholder="sk-ant-...">
+        <button class="btn btn-ghost btn-small" style="margin-top:10px" onclick="salvarChave()">Salvar chave</button>
+        <div class="warn">
+          <strong>⚠️ Importante:</strong> a chave fica salva apenas neste navegador (no seu computador).
+          Esta versão é um <strong>protótipo para você testar</strong>. Para publicar a ferramenta e
+          deixar clientes usarem, será preciso um servidor que guarde a chave com segurança —
+          nunca distribua um site com sua chave embutida.
+          <br><br>
+          Crie sua chave em: <strong>console.anthropic.com</strong> → API Keys.
+        </div>
+      </details>
+    </div>
+
+    <!-- Formulário -->
+    <div class="card no-print" id="form-card">
+      <h2>Conte sobre a viagem</h2>
+
+      <div class="row">
+        <div>
+          <label for="destino">Destino</label>
+          <input type="text" id="destino" placeholder="Ex: Paris, França">
+        </div>
+        <div>
+          <label for="dias">Número de dias</label>
+          <input type="number" id="dias" value="4" min="1" max="14">
+        </div>
+      </div>
+
+      <label>Interesses (clique para selecionar)</label>
+      <div class="chips" id="chips">
+        <div class="chip" data-v="Restaurantes e gastronomia">🍽️ Restaurantes</div>
+        <div class="chip" data-v="Museus e arte">🏛️ Museus</div>
+        <div class="chip" data-v="Experiências únicas e locais">✨ Experiências únicas</div>
+        <div class="chip" data-v="Natureza e parques">🌳 Natureza</div>
+        <div class="chip" data-v="Vida noturna">🌙 Vida noturna</div>
+        <div class="chip" data-v="Compras">🛍️ Compras</div>
+        <div class="chip" data-v="História e arquitetura">🏰 História</div>
+        <div class="chip" data-v="Pontos instagramáveis">📸 Fotos</div>
+      </div>
+
+      <label for="extra" style="margin-top:14px">Outros gostos ou observações (opcional)</label>
+      <textarea id="extra" rows="2" placeholder="Ex: viajo com crianças, gosto de café, evito muita caminhada..."></textarea>
+
+      <div class="row">
+        <div>
+          <label for="ritmo">Ritmo da viagem</label>
+          <select id="ritmo">
+            <option value="tranquilo">Tranquilo (poucas paradas por dia)</option>
+            <option value="equilibrado" selected>Equilibrado</option>
+            <option value="intenso">Intenso (aproveitar ao máximo)</option>
+          </select>
+        </div>
+        <div>
+          <label for="orcamento">Orçamento</label>
+          <select id="orcamento">
+            <option value="econômico">Econômico</option>
+            <option value="médio" selected>Médio</option>
+            <option value="luxo">Conforto / Luxo</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" id="btn-gerar" onclick="gerar()">✨ Gerar meu roteiro</button>
+    </div>
+
+    <!-- Loading -->
+    <div class="card" id="loading">
+      <div class="spinner"></div>
+      <p id="loading-msg">Criando seu roteiro personalizado...</p>
+      <div class="muted">Isso pode levar de 20 a 60 segundos.</div>
+    </div>
+
+    <!-- Erro -->
+    <div class="card no-print" id="erro">
+      <div class="erro-box" id="erro-msg"></div>
+    </div>
+
+    <!-- Roteiro gerado -->
+    <div class="card" id="roteiro">
+      <div class="no-print" style="text-align:right; margin-bottom:14px">
+        <button class="btn btn-ghost btn-small" onclick="window.print()">⬇️ Baixar / Imprimir PDF</button>
+        <button class="btn btn-ghost btn-small" onclick="novo()">🔄 Novo roteiro</button>
+      </div>
+      <div id="roteiro-conteudo"></div>
+    </div>
+  </div>
+
+  <script>
+    // ===== Configuração da chave =====
+    document.getElementById("apikey").value = localStorage.getItem("anthropic_key") || "";
+    function salvarChave() {
+      const k = document.getElementById("apikey").value.trim();
+      localStorage.setItem("anthropic_key", k);
+      alert(k ? "Chave salva neste navegador!" : "Chave removida.");
+    }
+
+    // ===== Seleção de interesses =====
+    document.querySelectorAll("#chips .chip").forEach(c => {
+      c.addEventListener("click", () => c.classList.toggle("active"));
+    });
+
+    // ===== Esquema JSON que a IA deve devolver =====
+    const SCHEMA = {
+      type: "object",
+      properties: {
+        destino: { type: "string" },
+        resumo: { type: "string" },
+        dias: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              dia: { type: "integer" },
+              titulo: { type: "string" },
+              atividades: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    periodo: { type: "string" },
+                    nome: { type: "string" },
+                    tipo: { type: "string" },
+                    descricao: { type: "string" },
+                    preco_estimado: { type: "string" },
+                    termo_foto: { type: "string" }
+                  },
+                  required: ["periodo", "nome", "tipo", "descricao", "preco_estimado", "termo_foto"],
+                  additionalProperties: false
+                }
+              }
+            },
+            required: ["dia", "titulo", "atividades"],
+            additionalProperties: false
+          }
+        },
+        dica_orcamento: { type: "string" }
+      },
+      required: ["destino", "resumo", "dias", "dica_orcamento"],
+      additionalProperties: false
+    };
+
+    // ===== Gerar roteiro =====
+    async function gerar() {
+      const apiKey = localStorage.getItem("anthropic_key");
+      if (!apiKey) {
+        document.getElementById("config-api").open = true;
+        alert("Configure sua chave de API primeiro (no topo da página).");
+        return;
+      }
+
+      const destino = document.getElementById("destino").value.trim();
+      if (!destino) { alert("Informe o destino da viagem."); return; }
+
+      const dias = document.getElementById("dias").value || "3";
+      const interesses = [...document.querySelectorAll("#chips .chip.active")].map(c => c.dataset.v);
+      const extra = document.getElementById("extra").value.trim();
+      const ritmo = document.getElementById("ritmo").value;
+      const orcamento = document.getElementById("orcamento").value;
+
+      const listaInteresses = interesses.length ? interesses.join(", ") : "interesses gerais de turismo";
+
+      const prompt = `Crie um roteiro de viagem personalizado, detalhado e bem organizado.
+
+Destino: ${destino}
+Duração: ${dias} dias
+Interesses do viajante: ${listaInteresses}
+${extra ? "Observações adicionais: " + extra : ""}
+Ritmo desejado: ${ritmo}
+Perfil de orçamento: ${orcamento}
+
+Instruções:
+- Para cada dia, distribua atividades entre manhã, tarde e noite, alinhadas aos interesses informados.
+- Inclua restaurantes, atrações e experiências reais e conhecidas do destino.
+- Em "descricao", escreva 2 a 3 frases envolventes sobre o local.
+- Em "preco_estimado", dê uma faixa aproximada na moeda local (deixe claro que é uma estimativa, ex: "~€22" ou "€30-50").
+- Em "termo_foto", coloque o nome do local exatamente como apareceria na Wikipédia para buscar uma foto (ex: "Museu do Louvre", "Torre Eiffel", "Montmartre").
+- Responda inteiramente em português.`;
+
+      mostrar("loading");
+      document.getElementById("btn-gerar").disabled = true;
+
+      try {
+        const resp = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-api-key": apiKey,
+            "anthropic-version": "2023-06-01",
+            "anthropic-dangerous-direct-browser-access": "true"
+          },
+          body: JSON.stringify({
+            model: "claude-opus-4-8",
+            max_tokens: 16000,
+            messages: [{ role: "user", content: prompt }],
+            output_config: { format: { type: "json_schema", schema: SCHEMA } }
+          })
+        });
+
+        if (!resp.ok) {
+          const txt = await resp.text();
+          let msg = "Erro " + resp.status;
+          if (resp.status === 401) msg = "Chave de API inválida. Verifique no console.anthropic.com.";
+          else if (resp.status === 429) msg = "Limite de uso atingido. Tente novamente em instantes.";
+          else if (resp.status === 400) msg = "Pedido inválido: " + txt;
+          else msg += ": " + txt;
+          throw new Error(msg);
+        }
+
+        const data = await resp.json();
+        const bloco = data.content.find(b => b.type === "text");
+        const roteiro = JSON.parse(bloco.text);
+
+        renderRoteiro(roteiro);
+        mostrar("roteiro");
+      } catch (e) {
+        document.getElementById("erro-msg").textContent = e.message || String(e);
+        mostrar("erro");
+      } finally {
+        document.getElementById("btn-gerar").disabled = false;
+      }
+    }
+
+    // ===== Renderizar o roteiro =====
+    function renderRoteiro(r) {
+      let html = `<div class="roteiro-cabecalho">
+          <h2>📍 ${escapar(r.destino)}</h2>
+          <p>${escapar(r.resumo)}</p>
+        </div>`;
+
+      const imgsParaBuscar = [];
+
+      r.dias.forEach(dia => {
+        html += `<div class="dia">
+            <div class="dia-titulo">Dia ${dia.dia} — ${escapar(dia.titulo)}</div>`;
+        dia.atividades.forEach(a => {
+          const imgId = "img-" + imgsParaBuscar.length;
+          imgsParaBuscar.push({ id: imgId, termo: a.termo_foto });
+          html += `<div class="atividade">
+              <div class="sem-foto" id="${imgId}">carregando foto...</div>
+              <div class="atividade-info">
+                <div class="tags">
+                  <span class="tag tag-periodo">${escapar(a.periodo)}</span>
+                  <span class="tag tag-tipo">${escapar(a.tipo)}</span>
+                  <span class="tag tag-preco">${escapar(a.preco_estimado)}</span>
+                </div>
+                <h4>${escapar(a.nome)}</h4>
+                <p>${escapar(a.descricao)}</p>
+              </div>
+            </div>`;
+        });
+        html += `</div>`;
+      });
+
+      html += `<div class="dica"><strong>💰 Dica de orçamento:</strong> ${escapar(r.dica_orcamento)}</div>`;
+      document.getElementById("roteiro-conteudo").innerHTML = html;
+
+      // Busca as fotos de forma assíncrona (sem travar a tela)
+      imgsParaBuscar.forEach(item => buscarFoto(item.termo, item.id));
+    }
+
+    // ===== Buscar foto na Wikipédia (grátis, sem chave) =====
+    async function buscarFoto(termo, elementId) {
+      for (const lang of ["pt", "en"]) {
+        try {
+          const url = `https://${lang}.wikipedia.org/w/api.php?action=query&format=json` +
+            `&prop=pageimages&piprop=thumbnail&pithumbsize=400` +
+            `&generator=search&gsrsearch=${encodeURIComponent(termo)}&gsrlimit=1&origin=*`;
+          const r = await fetch(url);
+          const j = await r.json();
+          const pages = j && j.query && j.query.pages;
+          if (pages) {
+            const page = Object.values(pages)[0];
+            if (page && page.thumbnail && page.thumbnail.source) {
+              const el = document.getElementById(elementId);
+              if (el) {
+                const img = document.createElement("img");
+                img.src = page.thumbnail.source;
+                img.alt = termo;
+                el.replaceWith(img);
+              }
+              return;
+            }
+          }
+        } catch (e) { /* tenta o próximo idioma */ }
+      }
+      // Sem foto encontrada
+      const el = document.getElementById(elementId);
+      if (el) el.textContent = "sem foto";
+    }
+
+    // ===== Utilidades =====
+    function escapar(t) {
+      return (t || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+    function mostrar(qual) {
+      ["loading", "erro", "roteiro"].forEach(id => {
+        document.getElementById(id).style.display = (id === qual) ? "block" : "none";
+      });
+    }
+    function novo() {
+      mostrar("");
+      document.getElementById("form-card").scrollIntoView({ behavior: "smooth" });
+    }
+  </script>
+</body>
+</html>
