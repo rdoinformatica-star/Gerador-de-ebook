@@ -181,6 +181,10 @@
     }
     .map-link:hover { background: #e3f2fd; }
 
+    .salvo-item { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid #eef2f6; font-size: 14px; flex-wrap: wrap; }
+    .salvo-item:first-child { border-top: none; }
+    .salvo-item small { color: #6b7a8d; }
+
     @media print {
       header, .no-print { display: none !important; }
       body { background: #fff; }
@@ -250,6 +254,23 @@
       <label for="extra" style="margin-top:14px">Outros gostos ou observações (opcional)</label>
       <textarea id="extra" rows="2" placeholder="Ex: viajo com crianças, gosto de café, evito muita caminhada..."></textarea>
 
+      <label for="mes">Quando vai viajar? (mês — opcional, a IA considera o clima)</label>
+      <select id="mes">
+        <option value="">Não sei / tanto faz</option>
+        <option>Janeiro</option>
+        <option>Fevereiro</option>
+        <option>Março</option>
+        <option>Abril</option>
+        <option>Maio</option>
+        <option>Junho</option>
+        <option>Julho</option>
+        <option>Agosto</option>
+        <option>Setembro</option>
+        <option>Outubro</option>
+        <option>Novembro</option>
+        <option>Dezembro</option>
+      </select>
+
       <div class="row">
         <div>
           <label for="ritmo">Ritmo da viagem</label>
@@ -272,6 +293,12 @@
       <button class="btn btn-primary" id="btn-gerar" onclick="gerar()">✨ Gerar meu roteiro</button>
     </div>
 
+    <!-- Roteiros salvos -->
+    <div class="card no-print" id="salvos-card" style="display:none">
+      <h2>💾 Meus roteiros salvos</h2>
+      <div id="salvos-lista"></div>
+    </div>
+
     <!-- Loading -->
     <div class="card" id="loading">
       <div class="spinner"></div>
@@ -286,9 +313,15 @@
 
     <!-- Roteiro gerado -->
     <div class="card" id="roteiro">
+      <div class="no-print" style="text-align:right; margin-bottom:6px">
+        <button class="btn btn-ghost btn-small" onclick="salvarRoteiro()">💾 Salvar</button>
+        <button class="btn btn-ghost btn-small" onclick="compartilharWhatsApp()">📱 WhatsApp</button>
+        <button class="btn btn-ghost btn-small" onclick="copiarTexto()">📋 Copiar</button>
+        <button class="btn btn-ghost btn-small" onclick="window.print()">⬇️ PDF</button>
+        <button class="btn btn-ghost btn-small" onclick="novo()">🔄 Novo</button>
+      </div>
       <div class="no-print" style="text-align:right; margin-bottom:14px">
-        <button class="btn btn-ghost btn-small" onclick="window.print()">⬇️ Baixar / Imprimir PDF</button>
-        <button class="btn btn-ghost btn-small" onclick="novo()">🔄 Novo roteiro</button>
+        <span id="acao-status" style="font-size:13px; font-weight:700; color:#2e7d32"></span>
       </div>
       <div id="roteiro-conteudo"></div>
     </div>
@@ -422,6 +455,7 @@
       const extra = document.getElementById("extra").value.trim();
       const ritmo = document.getElementById("ritmo").value;
       const orcamento = document.getElementById("orcamento").value;
+      const mes = document.getElementById("mes").value;
 
       const listaInteresses = interesses.length ? interesses.join(", ") : "interesses gerais de turismo";
 
@@ -431,10 +465,12 @@ Destino: ${destino}
 Duração: ${dias} dias
 Interesses do viajante: ${listaInteresses}
 ${extra ? "Observações adicionais: " + extra : ""}
+${mes ? "Época da viagem: " + mes : ""}
 Ritmo desejado: ${ritmo}
 Perfil de orçamento: ${orcamento}
 
 Instruções:
+- Se uma época da viagem foi informada, considere o clima/estação dessa época no destino: ajuste as sugestões (ex: praias e atividades ao ar livre quando estiver quente; museus e passeios cobertos quando frio ou chuvoso) e comente brevemente o clima esperado no "resumo".
 - MUITO IMPORTANTE — organize cada dia GEOGRAFICAMENTE: agrupe no mesmo dia atividades que ficam na mesma região/bairro e coloque-as em uma ordem lógica de deslocamento, de modo que a pessoa vá de um ponto ao próximo que esteja perto, caminhando ou com transporte curto, sem ficar atravessando a cidade para frente e para trás. Escolha restaurantes próximos das atrações daquele mesmo dia.
 - Em "regiao", informe o bairro ou a zona principal que o dia cobre (ex: "Belém", "Centro Histórico", "Montmartre").
 - Para cada dia, distribua atividades entre manhã, tarde e noite, alinhadas aos interesses informados.
@@ -480,6 +516,7 @@ Instruções:
         if (!texto) throw new Error("A IA não retornou um roteiro. Tente novamente.");
         const roteiro = JSON.parse(texto);
 
+        roteiroAtual = roteiro;
         renderRoteiro(roteiro);
         mostrar("roteiro");
       } catch (e) {
@@ -577,6 +614,100 @@ Instruções:
       mostrar("");
       document.getElementById("form-card").scrollIntoView({ behavior: "smooth" });
     }
+
+    // ===== Roteiro atual + salvar/abrir/excluir =====
+    let roteiroAtual = null;
+
+    function getSalvos() {
+      try { return JSON.parse(localStorage.getItem("roteiros_salvos")) || []; }
+      catch (e) { return []; }
+    }
+
+    function salvarRoteiro() {
+      if (!roteiroAtual) return;
+      const lista = getSalvos();
+      lista.unshift({
+        id: Date.now(),
+        destino: roteiroAtual.destino,
+        data: new Date().toLocaleDateString("pt-BR"),
+        roteiro: roteiroAtual
+      });
+      localStorage.setItem("roteiros_salvos", JSON.stringify(lista.slice(0, 20)));
+      renderSalvos();
+      feedback("✓ Roteiro salvo!");
+    }
+
+    function renderSalvos() {
+      const lista = getSalvos();
+      const card = document.getElementById("salvos-card");
+      const el = document.getElementById("salvos-lista");
+      if (!lista.length) { card.style.display = "none"; return; }
+      card.style.display = "block";
+      el.innerHTML = lista.map(item => `
+        <div class="salvo-item">
+          <span>📍 ${escapar(item.destino)} <small>(${escapar(item.data)})</small></span>
+          <span>
+            <button class="btn btn-ghost btn-small" onclick="abrirSalvo(${item.id})">Abrir</button>
+            <button class="btn btn-small" style="background:#c1121f;color:#fff" onclick="excluirSalvo(${item.id})">Excluir</button>
+          </span>
+        </div>`).join("");
+    }
+
+    function abrirSalvo(id) {
+      const item = getSalvos().find(x => x.id === id);
+      if (!item) return;
+      roteiroAtual = item.roteiro;
+      renderRoteiro(item.roteiro);
+      mostrar("roteiro");
+      document.getElementById("roteiro").scrollIntoView({ behavior: "smooth" });
+    }
+
+    function excluirSalvo(id) {
+      const lista = getSalvos().filter(x => x.id !== id);
+      localStorage.setItem("roteiros_salvos", JSON.stringify(lista));
+      renderSalvos();
+    }
+
+    // ===== Compartilhar / copiar =====
+    function roteiroParaTexto(r) {
+      let t = `🗺️ Roteiro de viagem: ${r.destino}\n${r.resumo}\n`;
+      r.dias.forEach(d => {
+        t += `\n📅 Dia ${d.dia} — ${d.titulo}${d.regiao ? " (" + d.regiao + ")" : ""}\n`;
+        d.atividades.forEach(a => {
+          t += `• ${a.periodo}: ${a.nome} — ${a.tipo} (${a.preco_estimado})\n`;
+        });
+      });
+      t += `\n💰 Dica: ${r.dica_orcamento}`;
+      return t;
+    }
+
+    function compartilharWhatsApp() {
+      if (!roteiroAtual) return;
+      const url = "https://wa.me/?text=" + encodeURIComponent(roteiroParaTexto(roteiroAtual));
+      window.open(url, "_blank");
+    }
+
+    function copiarTexto() {
+      if (!roteiroAtual) return;
+      const texto = roteiroParaTexto(roteiroAtual);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(texto)
+          .then(() => feedback("✓ Texto copiado!"))
+          .catch(() => feedback("Não foi possível copiar."));
+      } else {
+        feedback("Cópia não suportada neste navegador.");
+      }
+    }
+
+    function feedback(msg) {
+      const el = document.getElementById("acao-status");
+      if (!el) return;
+      el.textContent = msg;
+      setTimeout(() => { el.textContent = ""; }, 3000);
+    }
+
+    // Mostra a lista de salvos ao abrir o app
+    renderSalvos();
   </script>
 </body>
 </html>
