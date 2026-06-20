@@ -178,7 +178,7 @@
     <!-- Configuração da chave de API -->
     <div class="card no-print">
       <details id="config-api">
-        <summary>⚙️ Configurar chave da API (necessário na primeira vez)</summary>
+        <summary id="summary-config">⚙️ Configurar chave da API (necessário na primeira vez)</summary>
         <label for="apikey">Sua chave de API do Google Gemini (gratuita)</label>
         <input type="password" id="apikey" placeholder="AIza...">
         <button class="btn btn-ghost btn-small" style="margin-top:10px" onclick="salvarChave()">Salvar chave</button>
@@ -274,11 +274,21 @@
     document.getElementById("apikey").value = localStorage.getItem("gemini_key") || "";
     if (localStorage.getItem("gemini_key")) {
       document.getElementById("status-chave").textContent = "✓ Chave salva!";
+      document.getElementById("summary-config").textContent = "✓ Chave configurada — clique para alterar";
+      document.getElementById("config-api").open = false;
     }
     function salvarChave() {
       const k = document.getElementById("apikey").value.trim();
       localStorage.setItem("gemini_key", k);
-      document.getElementById("status-chave").textContent = k ? "✓ Chave salva!" : "Chave removida.";
+      const sum = document.getElementById("summary-config");
+      if (k) {
+        document.getElementById("status-chave").textContent = "✓ Chave salva!";
+        sum.textContent = "✓ Chave configurada — clique para alterar";
+        document.getElementById("config-api").open = false; // recolhe para não poluir a tela
+      } else {
+        document.getElementById("status-chave").textContent = "Chave removida.";
+        sum.textContent = "⚙️ Configurar chave da API (necessário na primeira vez)";
+      }
     }
 
     // ===== Seleção de interesses =====
