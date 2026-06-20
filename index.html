@@ -373,11 +373,12 @@ Instruções:
 
         if (!resp.ok) {
           const txt = await resp.text();
-          let msg = "Erro " + resp.status;
-          if (resp.status === 400) msg = "Chave de API inválida ou pedido incorreto. Confira a chave no aistudio.google.com/apikey. (" + txt + ")";
-          else if (resp.status === 403) msg = "Acesso negado. Verifique se a chave está correta e ativa.";
-          else if (resp.status === 429) msg = "Limite gratuito atingido por enquanto. Aguarde alguns minutos e tente novamente.";
-          else msg += ": " + txt;
+          let detalhe = txt;
+          try { detalhe = JSON.parse(txt).error.message; } catch (e) { /* mantém texto bruto */ }
+          let msg = "Erro " + resp.status + ": " + detalhe;
+          if (resp.status === 400) msg = "Chave inválida ou pedido incorreto. Detalhe: " + detalhe;
+          else if (resp.status === 403) msg = "Acesso negado (talvez a API não esteja ativada no projeto). Detalhe: " + detalhe;
+          else if (resp.status === 429) msg = "Limite/quota atingido. Detalhe: " + detalhe;
           throw new Error(msg);
         }
 
