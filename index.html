@@ -804,6 +804,24 @@ Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem tex
 
     async function carregarCotacoes() {
       if (cotacoes) return true;
+      // Fonte principal (CDN, base USD, cobre ~200 moedas incl. ARS/CLP)
+      const fontesCdn = [
+        "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json",
+        "https://latest.currency-api.pages.dev/v1/currencies/usd.json"
+      ];
+      for (const url of fontesCdn) {
+        try {
+          const r = await fetch(url);
+          const j = await r.json();
+          if (j && j.usd) {
+            cotacoes = {};
+            for (const k in j.usd) cotacoes[k.toUpperCase()] = j.usd[k];
+            cotacoes["USD"] = 1;
+            return true;
+          }
+        } catch (e) { /* tenta a próxima fonte */ }
+      }
+      // Fonte reserva
       try {
         const r = await fetch("https://open.er-api.com/v6/latest/USD");
         const j = await r.json();
