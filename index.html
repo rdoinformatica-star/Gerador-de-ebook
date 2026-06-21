@@ -352,7 +352,7 @@
     <div class="card" id="roteiro">
       <div class="no-print" style="text-align:right; margin-bottom:6px">
         <button class="btn btn-ghost btn-small" onclick="salvarRoteiro()">💾 Salvar</button>
-        <button class="btn btn-ghost btn-small" onclick="compartilharWhatsApp()">📱 WhatsApp (PDF)</button>
+        <button class="btn btn-ghost btn-small" id="btn-whatsapp" style="display:none" onclick="compartilharWhatsApp()">📱 WhatsApp (PDF)</button>
         <button class="btn btn-ghost btn-small" onclick="copiarTexto()">📋 Copiar</button>
         <button class="btn btn-ghost btn-small" onclick="window.print()">⬇️ PDF</button>
         <button class="btn btn-ghost btn-small" onclick="novo()">🔄 Novo</button>
@@ -917,22 +917,16 @@ Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem tex
         feedback("Não foi possível gerar o PDF.");
         return;
       }
-      // Celular: abre o menu de compartilhar com o PDF anexado (toque no WhatsApp)
+      // Abre o menu de compartilhar com o PDF anexado (toque no WhatsApp)
       if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
         try {
           await navigator.share({ files: [file], title: "Roteiro de viagem", text: "Segue o roteiro de " + roteiroAtual.destino });
           return;
         } catch (e) {
-          if (e && e.name === "AbortError") return; // usuário fechou o menu; não baixa
-          // qualquer outro erro -> cai para o download
+          if (e && e.name === "AbortError") return; // usuário fechou o menu
         }
       }
-      // Computador (ou sem suporte a compartilhar arquivo): baixa o PDF
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = file.name; a.click();
-      URL.revokeObjectURL(url);
-      feedback("PDF salvo — anexe no WhatsApp.");
+      feedback("Não foi possível abrir o compartilhamento. Use o botão ⬇️ PDF para salvar o arquivo.");
     }
 
     function copiarTexto() {
@@ -1121,6 +1115,17 @@ Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem tex
         el.innerHTML = `<div class="previsao-titulo">🌤️ Previsão do tempo para as datas</div><div class="clima-grid">${cards}</div>`;
       } catch (e) { el.innerHTML = ""; }
     }
+
+    // Mostra o botão "WhatsApp (PDF)" só onde dá para compartilhar arquivo (celular)
+    (function () {
+      try {
+        const dummy = new File([new Blob(["x"], { type: "application/pdf" })], "x.pdf", { type: "application/pdf" });
+        if (navigator.canShare && navigator.canShare({ files: [dummy] })) {
+          const b = document.getElementById("btn-whatsapp");
+          if (b) b.style.display = "";
+        }
+      } catch (e) { /* sem suporte: botão permanece oculto */ }
+    })();
 
     // Mostra a lista de salvos ao abrir o app
     renderSalvos();
