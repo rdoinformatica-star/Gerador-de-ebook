@@ -567,8 +567,11 @@ Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem tex
 
       try {
         const payload = JSON.stringify({ prompt: promptFinal, aoVivo, schema: aoVivo ? null : SCHEMA, senha });
-        let resp;
-        for (let tentativa = 1; tentativa <= 2; tentativa++) {
+        const espera = ms => new Promise(r => setTimeout(r, ms));
+
+        let roteiro = null, ultimoErro = null;
+        for (let tentativa = 1; tentativa <= 3; tentativa++) {
+          let resp;
           try {
             resp = await fetch("/api/roteiro", {
               method: "POST",
@@ -576,35 +579,35 @@ Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem tex
               body: payload
             });
           } catch (e) {
-            // falha de rede: tenta mais uma vez antes de desistir
-            if (tentativa === 2) throw new Error("Falha de conexão. Verifique a internet e tente novamente.");
-            await new Promise(r => setTimeout(r, 1500));
-            continue;
+            ultimoErro = "Falha de conexão. Verifique a internet.";
+            await espera(1200);
+            continue; // tenta de novo
           }
-          // erro temporário do servidor (ex.: servidor "acordando") -> tenta de novo
-          if (resp.status >= 500 && tentativa === 1) {
-            await new Promise(r => setTimeout(r, 1500));
-            continue;
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok) {
+            if (resp.status === 401) {
+              document.getElementById("config-api").open = true;
+              throw new Error("Senha de acesso incorreta ou ausente. Digite a senha em 🔓 Acesso (no topo).");
+            }
+            ultimoErro = (data && data.error) ? data.error : ("Erro " + resp.status);
+            if (resp.status >= 500) { await espera(1200); continue; } // servidor: tenta de novo
+            throw new Error(ultimoErro); // erro do pedido: não adianta repetir
           }
-          break;
+          let texto = (data.text || "").trim()
+            .replace(/^```json\s*/i, "").replace(/^```\s*/, "").replace(/```\s*$/, "").trim();
+          const ini = texto.indexOf("{"), fim = texto.lastIndexOf("}");
+          if (ini >= 0 && fim > ini) texto = texto.slice(ini, fim + 1);
+          if (!texto) { ultimoErro = "A IA não retornou um roteiro."; await espera(800); continue; }
+          try {
+            roteiro = JSON.parse(texto);
+            break; // sucesso!
+          } catch (e) {
+            // JSON torto (acontece às vezes na busca ao vivo) -> tenta de novo sozinho
+            ultimoErro = "A IA devolveu o roteiro num formato inesperado.";
+            await espera(800);
+          }
         }
-        const data = await resp.json().catch(() => ({}));
-        if (!resp.ok) {
-          let msg = (data && data.error) ? data.error : ("Erro " + resp.status);
-          if (resp.status === 401) {
-            document.getElementById("config-api").open = true;
-            msg = "Senha de acesso incorreta ou ausente. Digite a senha em 🔓 Acesso (no topo).";
-          }
-          throw new Error(msg);
-        }
-        let texto = data.text || "";
-        if (!texto) throw new Error("A IA não retornou um roteiro. Tente novamente.");
-        // limpa cercas de código e pega só o objeto JSON (do primeiro { ao último })
-        texto = texto.trim()
-          .replace(/^```json\s*/i, "").replace(/^```\s*/, "").replace(/```\s*$/, "").trim();
-        const ini = texto.indexOf("{"), fim = texto.lastIndexOf("}");
-        if (ini >= 0 && fim > ini) texto = texto.slice(ini, fim + 1);
-        const roteiro = JSON.parse(texto);
+        if (!roteiro) throw new Error((ultimoErro || "Não foi possível gerar o roteiro.") + " Tente novamente.");
 
         roteiro.viajantes = parseInt(viajantes) || 1;
         roteiro.dataInicio = dataInicio;

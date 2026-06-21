@@ -33,7 +33,7 @@ export default async function handler(req, res) {
   const modelo = "gemini-2.5-flash";
   const corpo = {
     contents: [{ parts: [{ text: prompt }] }],
-    generationConfig: { maxOutputTokens: 8192 }
+    generationConfig: { maxOutputTokens: 16384 }
   };
   if (aoVivo) {
     corpo.tools = [{ google_search: {} }]; // busca na web
