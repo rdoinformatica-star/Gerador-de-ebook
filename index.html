@@ -539,11 +539,28 @@ Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem tex
       document.getElementById("btn-gerar").disabled = true;
 
       try {
-        const resp = await fetch("/api/roteiro", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ prompt: promptFinal, aoVivo, schema: aoVivo ? null : SCHEMA, senha })
-        });
+        const payload = JSON.stringify({ prompt: promptFinal, aoVivo, schema: aoVivo ? null : SCHEMA, senha });
+        let resp;
+        for (let tentativa = 1; tentativa <= 2; tentativa++) {
+          try {
+            resp = await fetch("/api/roteiro", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: payload
+            });
+          } catch (e) {
+            // falha de rede: tenta mais uma vez antes de desistir
+            if (tentativa === 2) throw new Error("Falha de conexão. Verifique a internet e tente novamente.");
+            await new Promise(r => setTimeout(r, 1500));
+            continue;
+          }
+          // erro temporário do servidor (ex.: servidor "acordando") -> tenta de novo
+          if (resp.status >= 500 && tentativa === 1) {
+            await new Promise(r => setTimeout(r, 1500));
+            continue;
+          }
+          break;
+        }
         const data = await resp.json().catch(() => ({}));
         if (!resp.ok) {
           let msg = (data && data.error) ? data.error : ("Erro " + resp.status);
