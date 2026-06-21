@@ -348,7 +348,6 @@
           <option value="EUR">Euro (€)</option>
           <option value="GBP">Libra (£)</option>
           <option value="JPY">Iene (¥)</option>
-          <option value="ARS">Peso argentino</option>
           <option value="CAD">Dólar canadense</option>
           <option value="AUD">Dólar australiano</option>
           <option value="CHF">Franco suíço</option>
@@ -804,20 +803,26 @@ Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem tex
     async function carregarCotacoes() {
       if (cotacoes) return true;
       try {
-        const r = await fetch("https://open.er-api.com/v6/latest/USD");
+        const r = await fetch("https://api.frankfurter.app/latest?from=USD");
         const j = await r.json();
-        if (j && j.rates) { cotacoes = j.rates; return true; }
+        if (j && j.rates) {
+          cotacoes = j.rates;
+          cotacoes["USD"] = 1; // a base não vem na lista de taxas
+          return true;
+        }
       } catch (e) { /* sem internet ou serviço indisponível */ }
       return false;
     }
 
     function detectarMoeda(txt) {
-      if (/R\$/.test(txt)) return "BRL";
-      const cod = txt.match(/\b(USD|EUR|GBP|BRL|JPY|ARS|CAD|AUD|CHF|MXN|CLP)\b/i);
+      const s = (txt || "").toLowerCase();
+      if (/r\$/.test(txt) || /\breais\b|\breal\b/.test(s)) return "BRL";
+      const cod = txt.match(/\b(USD|EUR|GBP|BRL|JPY|CAD|AUD|CHF|MXN)\b/i);
       if (cod) return cod[1].toUpperCase();
-      if (txt.includes("€")) return "EUR";
-      if (txt.includes("£")) return "GBP";
-      if (txt.includes("¥")) return "JPY";
+      if (txt.includes("€") || s.includes("euro")) return "EUR";
+      if (txt.includes("£") || s.includes("libra")) return "GBP";
+      if (txt.includes("¥") || s.includes("iene") || s.includes("yen")) return "JPY";
+      if (s.includes("dólar") || s.includes("dolar")) return "USD";
       if (txt.includes("$")) return "USD";
       return null;
     }
