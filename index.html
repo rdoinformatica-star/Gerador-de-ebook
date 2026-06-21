@@ -528,6 +528,9 @@
       const dataInicio = document.getElementById("data-inicio").value || "";
 
       const listaInteresses = interesses.length ? interesses.join(", ") : "interesses gerais de turismo";
+      const instrucaoUnicas = interesses.includes("Experiências únicas e locais")
+        ? "\n- O viajante marcou \"Experiências únicas\": inclua OBRIGATORIAMENTE os principais cartões-postais e atrações icônicas e imperdíveis do destino — aqueles pontos que são \"carta marcada\", que praticamente todo visitante precisa conhecer (ex.: Torre Eiffel em Paris, Cristo Redentor no Rio) — além de experiências locais autênticas e memoráveis."
+        : "";
 
       const prompt = `Crie um roteiro de viagem personalizado, detalhado e bem organizado.
 
@@ -545,7 +548,7 @@ Instruções:
 - MUITO IMPORTANTE — organize cada dia GEOGRAFICAMENTE: agrupe no mesmo dia atividades que ficam na mesma região/bairro e coloque-as em uma ordem lógica de deslocamento, de modo que a pessoa vá de um ponto ao próximo que esteja perto, caminhando ou com transporte curto, sem ficar atravessando a cidade para frente e para trás. Escolha restaurantes próximos das atrações daquele mesmo dia.
 - Em "regiao", informe o bairro ou a zona principal que o dia cobre (ex: "Belém", "Centro Histórico", "Montmartre").
 - Para cada dia, distribua atividades entre manhã, tarde e noite, alinhadas aos interesses informados.
-- Inclua restaurantes, atrações e experiências reais e conhecidas do destino.
+- Inclua restaurantes, atrações e experiências reais e conhecidas do destino.${instrucaoUnicas}
 - Em "descricao", escreva 2 a 3 frases envolventes sobre o local.
 - Em "preco_estimado", dê uma faixa aproximada na moeda local (deixe claro que é uma estimativa, ex: "~€22" ou "€30-50").
 - Em "termo_foto", coloque o nome do local exatamente como apareceria na Wikipédia para buscar uma foto (ex: "Museu do Louvre", "Torre Eiffel", "Montmartre").
