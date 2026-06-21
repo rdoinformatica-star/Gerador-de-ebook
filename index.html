@@ -216,19 +216,15 @@
     <!-- Configuração da chave de API -->
     <div class="card no-print">
       <details id="config-api">
-        <summary id="summary-config">⚙️ Configurar chave da API (necessário na primeira vez)</summary>
-        <label for="apikey">Sua chave de API do Google Gemini (gratuita)</label>
-        <input type="password" id="apikey" placeholder="AIza...">
-        <button class="btn btn-ghost btn-small" style="margin-top:10px" onclick="salvarChave()">Salvar chave</button>
+        <summary id="summary-config">🔓 Acesso (digite a senha na primeira vez)</summary>
+        <label for="apikey">Senha de acesso</label>
+        <input type="password" id="apikey" placeholder="senha...">
+        <button class="btn btn-ghost btn-small" style="margin-top:10px" onclick="salvarChave()">Salvar senha</button>
         <span id="status-chave" style="margin-left:10px; font-size:13px; font-weight:700; color:#2e7d32"></span>
         <div class="warn">
-          <strong>⚠️ Importante:</strong> a chave fica salva apenas neste navegador (no seu computador).
-          Esta versão é um <strong>protótipo para você testar</strong>. Para publicar a ferramenta e
-          deixar clientes usarem, será preciso um servidor que guarde a chave com segurança —
-          nunca distribua um site com sua chave embutida.
-          <br><br>
-          Crie sua chave grátis em: <strong>aistudio.google.com/apikey</strong> → "Create API key".
-          O plano gratuito tem limite diário de uso, suficiente para testar.
+          A senha libera o uso da ferramenta e fica salva apenas neste navegador.
+          Peça a senha ao responsável pelo app. A inteligência artificial roda no
+          servidor — você não precisa de nenhuma chave de API.
         </div>
       </details>
     </div>
@@ -363,23 +359,23 @@
 
   <script>
     // ===== Configuração da chave =====
-    document.getElementById("apikey").value = localStorage.getItem("gemini_key") || "";
-    if (localStorage.getItem("gemini_key")) {
-      document.getElementById("status-chave").textContent = "✓ Chave salva!";
-      document.getElementById("summary-config").textContent = "✓ Chave configurada — clique para alterar";
+    document.getElementById("apikey").value = localStorage.getItem("acesso_senha") || "";
+    if (localStorage.getItem("acesso_senha")) {
+      document.getElementById("status-chave").textContent = "✓ Senha salva!";
+      document.getElementById("summary-config").textContent = "✓ Acesso configurado — clique para alterar";
       document.getElementById("config-api").open = false;
     }
     function salvarChave() {
       const k = document.getElementById("apikey").value.trim();
-      localStorage.setItem("gemini_key", k);
+      localStorage.setItem("acesso_senha", k);
       const sum = document.getElementById("summary-config");
       if (k) {
-        document.getElementById("status-chave").textContent = "✓ Chave salva!";
-        sum.textContent = "✓ Chave configurada — clique para alterar";
+        document.getElementById("status-chave").textContent = "✓ Senha salva!";
+        sum.textContent = "✓ Acesso configurado — clique para alterar";
         document.getElementById("config-api").open = false; // recolhe para não poluir a tela
       } else {
-        document.getElementById("status-chave").textContent = "Chave removida.";
-        sum.textContent = "⚙️ Configurar chave da API (necessário na primeira vez)";
+        document.getElementById("status-chave").textContent = "Senha removida.";
+        sum.textContent = "🔓 Acesso (digite a senha na primeira vez)";
       }
     }
 
@@ -481,10 +477,10 @@
 
     // ===== Gerar roteiro =====
     async function gerar() {
-      const apiKey = localStorage.getItem("gemini_key");
-      if (!apiKey) {
+      const senha = localStorage.getItem("acesso_senha");
+      if (!senha) {
         document.getElementById("config-api").open = true;
-        document.getElementById("erro-msg").textContent = "Configure sua chave do Google Gemini primeiro (no topo da página) e clique em Salvar chave.";
+        document.getElementById("erro-msg").textContent = "Digite a senha de acesso primeiro (em 🔓 Acesso, no topo) e clique em Salvar senha.";
         mostrar("erro");
         return;
       }
@@ -542,42 +538,21 @@ Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem tex
       document.getElementById("btn-gerar").disabled = true;
 
       try {
-        const modelo = "gemini-2.5-flash";
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${encodeURIComponent(apiKey)}`;
-        const corpo = {
-          contents: [{ parts: [{ text: promptFinal }] }],
-          generationConfig: { maxOutputTokens: 8192 }
-        };
-        if (aoVivo) {
-          corpo.tools = [{ google_search: {} }]; // busca na web (grounding)
-          // com busca ativa não dá para usar responseSchema; pedimos o JSON no prompt
-        } else {
-          corpo.generationConfig.responseMimeType = "application/json";
-          corpo.generationConfig.responseSchema = SCHEMA; // formato garantido
-        }
-        const resp = await fetch(url, {
+        const resp = await fetch("/api/roteiro", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify(corpo)
+          body: JSON.stringify({ prompt: promptFinal, aoVivo, schema: aoVivo ? null : SCHEMA, senha })
         });
-
+        const data = await resp.json().catch(() => ({}));
         if (!resp.ok) {
-          const txt = await resp.text();
-          let detalhe = txt;
-          try { detalhe = JSON.parse(txt).error.message; } catch (e) { /* mantém texto bruto */ }
-          let msg = "Erro " + resp.status + ": " + detalhe;
-          if (resp.status === 400) msg = "Chave inválida ou pedido incorreto. Detalhe: " + detalhe;
-          else if (resp.status === 403) msg = "Acesso negado (talvez a API não esteja ativada no projeto). Detalhe: " + detalhe;
-          else if (resp.status === 429) msg = "Limite/quota atingido. Detalhe: " + detalhe;
+          let msg = (data && data.error) ? data.error : ("Erro " + resp.status);
+          if (resp.status === 401) {
+            document.getElementById("config-api").open = true;
+            msg = "Senha de acesso incorreta ou ausente. Digite a senha em 🔓 Acesso (no topo).";
+          }
           throw new Error(msg);
         }
-
-        const data = await resp.json();
-        const cand = data.candidates && data.candidates[0];
-        let texto = "";
-        if (cand && cand.content && cand.content.parts) {
-          texto = cand.content.parts.map(p => p.text || "").join("");
-        }
+        let texto = data.text || "";
         if (!texto) throw new Error("A IA não retornou um roteiro. Tente novamente.");
         // limpa cercas de código e pega só o objeto JSON (do primeiro { ao último })
         texto = texto.trim()
