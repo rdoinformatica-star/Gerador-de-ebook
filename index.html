@@ -348,6 +348,8 @@
           <option value="EUR">Euro (€)</option>
           <option value="GBP">Libra (£)</option>
           <option value="JPY">Iene (¥)</option>
+          <option value="ARS">Peso argentino (AR$)</option>
+          <option value="CLP">Peso chileno</option>
           <option value="CAD">Dólar canadense</option>
           <option value="AUD">Dólar australiano</option>
           <option value="CHF">Franco suíço</option>
@@ -803,11 +805,11 @@ Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem tex
     async function carregarCotacoes() {
       if (cotacoes) return true;
       try {
-        const r = await fetch("https://api.frankfurter.app/latest?from=USD");
+        const r = await fetch("https://open.er-api.com/v6/latest/USD");
         const j = await r.json();
         if (j && j.rates) {
           cotacoes = j.rates;
-          cotacoes["USD"] = 1; // a base não vem na lista de taxas
+          cotacoes["USD"] = cotacoes["USD"] || 1;
           return true;
         }
       } catch (e) { /* sem internet ou serviço indisponível */ }
@@ -817,7 +819,7 @@ Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem tex
     function detectarMoeda(txt) {
       const s = (txt || "").toLowerCase();
       if (/r\$/.test(txt) || /\breais\b|\breal\b/.test(s)) return "BRL";
-      const cod = txt.match(/\b(USD|EUR|GBP|BRL|JPY|CAD|AUD|CHF|MXN)\b/i);
+      const cod = txt.match(/\b(USD|EUR|GBP|BRL|JPY|CAD|AUD|CHF|MXN|ARS|CLP|COP|PEN|UYU)\b/i);
       if (cod) return cod[1].toUpperCase();
       if (txt.includes("€") || s.includes("euro")) return "EUR";
       if (txt.includes("£") || s.includes("libra")) return "GBP";
@@ -827,16 +829,34 @@ Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem tex
       return null;
     }
 
+    // Interpreta um número que pode usar "." ou "," como milhar/decimal
+    function parseValor(raw) {
+      let t = raw;
+      if (t.includes(".") && t.includes(",")) {
+        // o separador que aparece por último é o decimal
+        if (t.lastIndexOf(",") > t.lastIndexOf(".")) t = t.replace(/\./g, "").replace(",", ".");
+        else t = t.replace(/,/g, "");
+      } else if (t.includes(",")) {
+        // só vírgula: 3 dígitos depois = milhar; senão decimal
+        t = (/,\d{3}(\D|$)/.test(t) && !/,\d{1,2}(\D|$)/.test(t)) ? t.replace(/,/g, "") : t.replace(",", ".");
+      } else if (t.includes(".")) {
+        // só ponto: 3 dígitos depois do último ponto = milhar
+        if (t.slice(t.lastIndexOf(".") + 1).length === 3) t = t.replace(/\./g, "");
+      }
+      return parseFloat(t);
+    }
+
     function converterTexto(orig, alvo, simboloAlvo) {
       const origem = detectarMoeda(orig);
       if (!origem || origem === alvo || !cotacoes[origem] || !cotacoes[alvo]) return orig;
       const fator = cotacoes[alvo] / cotacoes[origem]; // ambos relativos ao USD
-      const nums = orig.match(/\d+(?:[.,]\d+)?/g);
+      const nums = orig.match(/\d[\d.,]*/g);
       if (!nums) return orig;
-      const convertidos = nums.map(n => {
-        const v = parseFloat(n.replace(",", ".")) * fator;
-        return Math.round(v).toLocaleString("pt-BR");
-      });
+      const convertidos = nums
+        .map(parseValor)
+        .filter(v => !isNaN(v) && v > 0)
+        .map(v => Math.round(v * fator).toLocaleString("pt-BR"));
+      if (!convertidos.length) return orig;
       return `${orig} ≈ ${simboloAlvo}${convertidos.join("–")}`;
     }
 
@@ -852,7 +872,7 @@ Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem tex
       status.textContent = "buscando cotação...";
       const ok = await carregarCotacoes();
       if (!ok) { status.textContent = "não foi possível buscar a cotação agora."; return; }
-      const simbolos = { BRL: "R$", USD: "US$", EUR: "€", GBP: "£", JPY: "¥", ARS: "AR$", CAD: "C$", AUD: "A$", CHF: "CHF ", MXN: "MX$" };
+      const simbolos = { BRL: "R$", USD: "US$", EUR: "€", GBP: "£", JPY: "¥", ARS: "AR$", CLP: "CLP ", CAD: "C$", AUD: "A$", CHF: "CHF ", MXN: "MX$" };
       tags.forEach(t => {
         t.textContent = converterTexto(t.dataset.orig, alvo, simbolos[alvo] || (alvo + " "));
       });
