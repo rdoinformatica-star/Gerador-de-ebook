@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gerador de Roteiro de Viagem</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -327,7 +328,7 @@
     <div class="card" id="roteiro">
       <div class="no-print" style="text-align:right; margin-bottom:6px">
         <button class="btn btn-ghost btn-small" onclick="salvarRoteiro()">💾 Salvar</button>
-        <button class="btn btn-ghost btn-small" onclick="compartilharWhatsApp()">📱 WhatsApp</button>
+        <button class="btn btn-ghost btn-small" onclick="compartilharWhatsApp()">📱 WhatsApp (PDF)</button>
         <button class="btn btn-ghost btn-small" onclick="copiarTexto()">📋 Copiar</button>
         <button class="btn btn-ghost btn-small" onclick="window.print()">⬇️ PDF</button>
         <button class="btn btn-ghost btn-small" onclick="novo()">🔄 Novo</button>
@@ -749,10 +750,75 @@ Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem tex
       return t;
     }
 
-    function compartilharWhatsApp() {
+    // Monta um PDF bem formatado a partir do roteiro
+    function construirPdf() {
+      const r = roteiroAtual;
+      const doc = new window.jspdf.jsPDF({ unit: "pt", format: "a4" });
+      const margem = 40;
+      const largura = doc.internal.pageSize.getWidth() - margem * 2;
+      const alturaPagina = doc.internal.pageSize.getHeight();
+      let y = margem;
+
+      function quebraSePreciso(h) {
+        if (y + h > alturaPagina - margem) { doc.addPage(); y = margem; }
+      }
+      function escreve(txt, size, style, espacoDepois) {
+        doc.setFont("helvetica", style || "normal");
+        doc.setFontSize(size);
+        doc.splitTextToSize(txt, largura).forEach(linha => {
+          quebraSePreciso(size + 4);
+          doc.text(linha, margem, y);
+          y += size + 4;
+        });
+        if (espacoDepois) y += espacoDepois;
+      }
+
+      escreve("Roteiro de viagem: " + r.destino, 18, "bold", 6);
+      if (r.resumo) escreve(r.resumo, 11, "normal", 8);
+
+      r.dias.forEach(d => {
+        quebraSePreciso(46);
+        y += 6;
+        escreve("Dia " + d.dia + " - " + d.titulo + (d.regiao ? " (" + d.regiao + ")" : ""), 14, "bold", 4);
+        d.atividades.forEach(a => {
+          escreve(a.periodo + ": " + a.nome + "  [" + a.tipo + " | " + a.preco_estimado + "]", 11, "bold", 0);
+          if (a.descricao) escreve(a.descricao, 10, "normal", 2);
+          if (a.proximos && a.proximos.length) {
+            a.proximos.forEach(p => escreve("- Perto: " + p.nome + " (" + p.tipo + ") - " + p.nota, 9, "italic", 0));
+          }
+          y += 4;
+        });
+      });
+
+      if (r.dica_orcamento) { y += 6; escreve("Dica de orcamento: " + r.dica_orcamento, 11, "normal", 0); }
+      return doc;
+    }
+
+    async function compartilharWhatsApp() {
       if (!roteiroAtual) return;
-      const url = "https://wa.me/?text=" + encodeURIComponent(roteiroParaTexto(roteiroAtual));
-      window.open(url, "_blank");
+      if (!window.jspdf) { feedback("Aguarde o carregamento e tente de novo."); return; }
+      let blob, file;
+      try {
+        blob = construirPdf().output("blob");
+        const nome = "roteiro-" + (roteiroAtual.destino || "viagem").replace(/[^\w]+/g, "-").toLowerCase() + ".pdf";
+        file = new File([blob], nome, { type: "application/pdf" });
+      } catch (e) {
+        feedback("Não foi possível gerar o PDF.");
+        return;
+      }
+      // No celular: abre o menu de compartilhar (escolha o WhatsApp) com o PDF anexado
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: "Roteiro de viagem", text: "Segue o roteiro de " + roteiroAtual.destino });
+          return;
+        } catch (e) { /* usuário cancelou ou não suportou — cai para o download */ }
+      }
+      // No computador: baixa o PDF para você anexar no WhatsApp
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = file.name; a.click();
+      URL.revokeObjectURL(url);
+      feedback("PDF baixado — é só anexar no WhatsApp.");
     }
 
     function copiarTexto() {
