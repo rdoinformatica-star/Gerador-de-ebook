@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/roteiro.js": {
+      "maxDuration": 60
+    }
+  }
+}
