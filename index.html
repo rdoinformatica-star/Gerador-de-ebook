@@ -192,6 +192,10 @@
     .map-mini { color: #1565c0; text-decoration: none; font-weight: 600; white-space: nowrap; }
     .map-mini:hover { text-decoration: underline; }
 
+    .conversor { background: #eef4f8; border-radius: 9px; padding: 10px 12px; margin-bottom: 16px; font-size: 14px; font-weight: 600; color: #1e6091; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .conversor select { width: auto; font-weight: 600; }
+    .conversor .muted { font-weight: 400; }
+
     @media print {
       header, .no-print { display: none !important; }
       body { background: #fff; }
@@ -334,6 +338,23 @@
       </div>
       <div class="no-print" style="text-align:right; margin-bottom:14px">
         <span id="acao-status" style="font-size:13px; font-weight:700; color:#2e7d32"></span>
+      </div>
+      <div class="conversor no-print">
+        💱 Converter preços para:
+        <select id="moeda-alvo" onchange="converterPrecos()">
+          <option value="">— manter original —</option>
+          <option value="BRL">Real (R$)</option>
+          <option value="USD">Dólar (US$)</option>
+          <option value="EUR">Euro (€)</option>
+          <option value="GBP">Libra (£)</option>
+          <option value="JPY">Iene (¥)</option>
+          <option value="ARS">Peso argentino</option>
+          <option value="CAD">Dólar canadense</option>
+          <option value="AUD">Dólar australiano</option>
+          <option value="CHF">Franco suíço</option>
+          <option value="MXN">Peso mexicano</option>
+        </select>
+        <span id="cotacao-status" class="muted"></span>
       </div>
       <div id="roteiro-conteudo"></div>
     </div>
@@ -619,7 +640,7 @@ Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem tex
                 <div class="tags">
                   <span class="tag tag-periodo">${escapar(a.periodo)}</span>
                   <span class="tag tag-tipo">${escapar(a.tipo)}</span>
-                  <span class="tag tag-preco">${escapar(a.preco_estimado)}</span>
+                  <span class="tag tag-preco" data-orig="${escapar(a.preco_estimado)}">${escapar(a.preco_estimado)}</span>
                 </div>
                 <h4>${escapar(a.nome)}</h4>
                 <p>${escapar(a.descricao)}</p>
@@ -636,6 +657,10 @@ Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem tex
 
       // Busca as fotos de forma assíncrona (sem travar a tela)
       imgsParaBuscar.forEach(item => buscarFoto(item.termo, item.id));
+
+      // Reaplica a conversão de moeda, se houver uma selecionada
+      const alvoSel = document.getElementById("moeda-alvo");
+      if (alvoSel && alvoSel.value) converterPrecos();
     }
 
     // ===== Buscar foto na Wikipédia (grátis, sem chave) =====
@@ -670,7 +695,7 @@ Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem tex
 
     // ===== Utilidades =====
     function escapar(t) {
-      return (t || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      return (t || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     }
     function mostrar(qual) {
       ["loading", "erro", "roteiro"].forEach(id => {
@@ -771,6 +796,62 @@ Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem tex
       if (!el) return;
       el.textContent = msg;
       setTimeout(() => { el.textContent = ""; }, 3000);
+    }
+
+    // ===== Conversor de moedas (cotação em tempo real, gratuito) =====
+    let cotacoes = null; // taxas relativas ao USD
+
+    async function carregarCotacoes() {
+      if (cotacoes) return true;
+      try {
+        const r = await fetch("https://open.er-api.com/v6/latest/USD");
+        const j = await r.json();
+        if (j && j.rates) { cotacoes = j.rates; return true; }
+      } catch (e) { /* sem internet ou serviço indisponível */ }
+      return false;
+    }
+
+    function detectarMoeda(txt) {
+      if (/R\$/.test(txt)) return "BRL";
+      const cod = txt.match(/\b(USD|EUR|GBP|BRL|JPY|ARS|CAD|AUD|CHF|MXN|CLP)\b/i);
+      if (cod) return cod[1].toUpperCase();
+      if (txt.includes("€")) return "EUR";
+      if (txt.includes("£")) return "GBP";
+      if (txt.includes("¥")) return "JPY";
+      if (txt.includes("$")) return "USD";
+      return null;
+    }
+
+    function converterTexto(orig, alvo, simboloAlvo) {
+      const origem = detectarMoeda(orig);
+      if (!origem || origem === alvo || !cotacoes[origem] || !cotacoes[alvo]) return orig;
+      const fator = cotacoes[alvo] / cotacoes[origem]; // ambos relativos ao USD
+      const nums = orig.match(/\d+(?:[.,]\d+)?/g);
+      if (!nums) return orig;
+      const convertidos = nums.map(n => {
+        const v = parseFloat(n.replace(",", ".")) * fator;
+        return Math.round(v).toLocaleString("pt-BR");
+      });
+      return `${orig} ≈ ${simboloAlvo}${convertidos.join("–")}`;
+    }
+
+    async function converterPrecos() {
+      const alvo = document.getElementById("moeda-alvo").value;
+      const tags = document.querySelectorAll(".tag-preco[data-orig]");
+      const status = document.getElementById("cotacao-status");
+      if (!alvo) {
+        tags.forEach(t => t.textContent = t.dataset.orig);
+        status.textContent = "";
+        return;
+      }
+      status.textContent = "buscando cotação...";
+      const ok = await carregarCotacoes();
+      if (!ok) { status.textContent = "não foi possível buscar a cotação agora."; return; }
+      const simbolos = { BRL: "R$", USD: "US$", EUR: "€", GBP: "£", JPY: "¥", ARS: "AR$", CAD: "C$", AUD: "A$", CHF: "CHF ", MXN: "MX$" };
+      tags.forEach(t => {
+        t.textContent = converterTexto(t.dataset.orig, alvo, simbolos[alvo] || (alvo + " "));
+      });
+      status.textContent = "cotação de hoje (aproximada)";
     }
 
     // Mostra a lista de salvos ao abrir o app
