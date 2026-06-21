@@ -767,47 +767,96 @@ Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem tex
       return t;
     }
 
-    // Monta um PDF bem formatado a partir do roteiro
+    // Monta um PDF colorido e bonito a partir do roteiro
     function construirPdf() {
       const r = roteiroAtual;
       const doc = new window.jspdf.jsPDF({ unit: "pt", format: "a4" });
-      const margem = 40;
-      const largura = doc.internal.pageSize.getWidth() - margem * 2;
-      const alturaPagina = doc.internal.pageSize.getHeight();
-      let y = margem;
+      const W = doc.internal.pageSize.getWidth();
+      const H = doc.internal.pageSize.getHeight();
+      const m = 40;
+      const cw = W - m * 2;
+      let y = 0;
 
-      function quebraSePreciso(h) {
-        if (y + h > alturaPagina - margem) { doc.addPage(); y = margem; }
-      }
-      function escreve(txt, size, style, espacoDepois) {
-        doc.setFont("helvetica", style || "normal");
-        doc.setFontSize(size);
-        doc.splitTextToSize(txt, largura).forEach(linha => {
-          quebraSePreciso(size + 4);
-          doc.text(linha, margem, y);
-          y += size + 4;
-        });
-        if (espacoDepois) y += espacoDepois;
-      }
+      function novaPaginaSe(h) { if (y + h > H - m) { doc.addPage(); y = m; } }
 
-      escreve("Roteiro de viagem: " + r.destino, 18, "bold", 6);
-      if (r.resumo) escreve(r.resumo, 11, "normal", 8);
+      // Cabeçalho colorido (capa)
+      doc.setFillColor(30, 96, 145);
+      doc.rect(0, 0, W, 96, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold"); doc.setFontSize(20);
+      doc.text(doc.splitTextToSize(r.destino || "Roteiro de viagem", cw), m, 38);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(10);
+      if (r.resumo) doc.text(doc.splitTextToSize(r.resumo, cw).slice(0, 3), m, 62);
+      y = 116;
 
       r.dias.forEach(d => {
-        quebraSePreciso(46);
-        y += 6;
-        escreve("Dia " + d.dia + " - " + d.titulo + (d.regiao ? " (" + d.regiao + ")" : ""), 14, "bold", 4);
+        novaPaginaSe(44);
+        // Faixa colorida do dia
+        doc.setFillColor(22, 138, 173);
+        doc.roundedRect(m, y, cw, 26, 5, 5, "F");
+        doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(12);
+        doc.text("Dia " + d.dia + "  -  " + d.titulo + (d.regiao ? "  (" + d.regiao + ")" : ""), m + 10, y + 17, { maxWidth: cw - 20 });
+        y += 40;
+
         d.atividades.forEach(a => {
-          escreve(a.periodo + ": " + a.nome + "  [" + a.tipo + " | " + a.preco_estimado + "]", 11, "bold", 0);
-          if (a.descricao) escreve(a.descricao, 10, "normal", 2);
-          if (a.proximos && a.proximos.length) {
-            a.proximos.forEach(p => escreve("- Perto: " + p.nome + " (" + p.tipo + ") - " + p.nota, 9, "italic", 0));
+          novaPaginaSe(64);
+          // Nome da atividade
+          doc.setTextColor(26, 34, 56); doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+          doc.splitTextToSize(a.nome, cw).forEach(l => { doc.text(l, m, y); y += 15; });
+
+          // Tags coloridas: período / tipo / preço
+          let x = m;
+          const tags = [
+            { t: a.periodo, fill: [227, 242, 253], color: [21, 101, 192] },
+            { t: a.tipo, fill: [255, 243, 224], color: [230, 81, 0] },
+            { t: a.preco_estimado, fill: [232, 245, 233], color: [46, 125, 50] }
+          ];
+          doc.setFont("helvetica", "bold"); doc.setFontSize(8);
+          tags.forEach(tag => {
+            if (!tag.t) return;
+            const tw = doc.getTextWidth(tag.t) + 12;
+            if (x + tw > m + cw) { x = m; y += 16; }
+            doc.setFillColor(tag.fill[0], tag.fill[1], tag.fill[2]);
+            doc.roundedRect(x, y - 9, tw, 13, 3, 3, "F");
+            doc.setTextColor(tag.color[0], tag.color[1], tag.color[2]);
+            doc.text(tag.t, x + 6, y);
+            x += tw + 6;
+          });
+          y += 16;
+
+          // Descrição
+          if (a.descricao) {
+            doc.setTextColor(52, 73, 94); doc.setFont("helvetica", "normal"); doc.setFontSize(9.5);
+            doc.splitTextToSize(a.descricao, cw).forEach(l => { novaPaginaSe(12); doc.text(l, m, y); y += 12; });
           }
-          y += 4;
+
+          // Perto daqui
+          if (a.proximos && a.proximos.length) {
+            novaPaginaSe(13);
+            doc.setTextColor(46, 125, 50); doc.setFont("helvetica", "bold"); doc.setFontSize(8.5);
+            doc.text("Perto daqui:", m, y); y += 12;
+            doc.setFont("helvetica", "normal"); doc.setTextColor(60, 72, 80);
+            a.proximos.forEach(p => {
+              doc.splitTextToSize("- " + p.nome + " (" + p.tipo + ") - " + p.nota, cw - 10)
+                .forEach(l => { novaPaginaSe(11); doc.text(l, m + 8, y); y += 11; });
+            });
+          }
+          y += 12;
         });
+        y += 6;
       });
 
-      if (r.dica_orcamento) { y += 6; escreve("Dica de orcamento: " + r.dica_orcamento, 11, "normal", 0); }
+      // Caixa verde com a dica de orçamento
+      if (r.dica_orcamento) {
+        doc.setFont("helvetica", "normal"); doc.setFontSize(10);
+        const linhas = doc.splitTextToSize("Dica de orcamento: " + r.dica_orcamento, cw - 20);
+        const boxH = linhas.length * 12 + 18;
+        novaPaginaSe(boxH);
+        doc.setFillColor(232, 245, 233); doc.roundedRect(m, y, cw, boxH, 6, 6, "F");
+        doc.setTextColor(27, 94, 32);
+        let yy = y + 16; linhas.forEach(l => { doc.text(l, m + 10, yy); yy += 12; });
+        y += boxH;
+      }
       return doc;
     }
 
@@ -823,19 +872,22 @@ Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem tex
         feedback("Não foi possível gerar o PDF.");
         return;
       }
-      // No celular: abre o menu de compartilhar (escolha o WhatsApp) com o PDF anexado
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      // Celular: abre o menu de compartilhar com o PDF anexado (toque no WhatsApp)
+      if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
         try {
           await navigator.share({ files: [file], title: "Roteiro de viagem", text: "Segue o roteiro de " + roteiroAtual.destino });
           return;
-        } catch (e) { /* usuário cancelou ou não suportou — cai para o download */ }
+        } catch (e) {
+          if (e && e.name === "AbortError") return; // usuário fechou o menu; não baixa
+          // qualquer outro erro -> cai para o download
+        }
       }
-      // No computador: baixa o PDF para você anexar no WhatsApp
+      // Computador (ou sem suporte a compartilhar arquivo): baixa o PDF
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url; a.download = file.name; a.click();
       URL.revokeObjectURL(url);
-      feedback("PDF baixado — é só anexar no WhatsApp.");
+      feedback("PDF salvo — anexe no WhatsApp.");
     }
 
     function copiarTexto() {
