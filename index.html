@@ -637,7 +637,12 @@ Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem tex
               document.getElementById("config-api").open = true;
               throw new Error("Senha de acesso incorreta ou ausente. Digite a senha em 🔓 Acesso (no topo).");
             }
-            ultimoErro = (data && data.error) ? data.error : ("Erro " + resp.status);
+            const detalhe = (data && data.error) ? data.error : "";
+            const ehLimite = resp.status === 429 || /quota|rate|resource_exhausted|exceeded|limit/i.test(detalhe);
+            if (ehLimite) {
+              throw new Error("⏳ Muitos pedidos à inteligência artificial neste momento. Espere cerca de 1 minutinho e tente de novo. (Se acontecer o dia todo, pode ser o limite diário do plano gratuito, que renova de madrugada.)");
+            }
+            ultimoErro = detalhe || ("Erro " + resp.status);
             if (resp.status >= 500) { await espera(1200); continue; } // servidor: tenta de novo
             throw new Error(ultimoErro); // erro do pedido: não adianta repetir
           }
