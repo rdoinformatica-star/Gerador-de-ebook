@@ -1211,8 +1211,30 @@ Crie uma NOVA versão desse dia, diferente da atual, com a mesma qualidade.
       return t;
     }
 
-    // Monta um PDF colorido e harmonioso a partir do roteiro
-    function construirPdf() {
+    // Converte uma imagem (URL com CORS, ex.: Wikimedia) em dataURL para embutir no PDF
+    function imagemParaDataURL(url, maxW) {
+      return new Promise(resolve => {
+        if (!url) return resolve(null);
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+          try {
+            const escala = Math.min(1, (maxW || 360) / img.naturalWidth);
+            const cv = document.createElement("canvas");
+            cv.width = Math.round(img.naturalWidth * escala);
+            cv.height = Math.round(img.naturalHeight * escala);
+            cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
+            resolve({ data: cv.toDataURL("image/jpeg", 0.82), w: cv.width, h: cv.height });
+          } catch (e) { resolve(null); } // imagem sem CORS: ignora
+        };
+        img.onerror = () => resolve(null);
+        // cache-buster para forçar uma requisição com CORS (evita resposta cacheada sem o cabeçalho)
+        img.src = url + (url.includes("?") ? "&" : "?") + "pdfcors=1";
+      });
+    }
+
+    // Monta um PDF colorido e harmonioso, com fotos (capa + miniatura por atividade)
+    async function construirPdf() {
       const r = roteiroAtual;
       const doc = new window.jspdf.jsPDF({ unit: "pt", format: "a4" });
       const W = doc.internal.pageSize.getWidth();
@@ -1225,6 +1247,26 @@ Crie uma NOVA versão desse dia, diferente da atual, com a mesma qualidade.
       // paleta da marca
       const AZUL = [30, 96, 145], CIANO = [22, 138, 173], LARANJA = [239, 108, 0];
       const TINTA = [26, 34, 56];
+
+      // ---- Coleta as fotos já mostradas na tela e converte para embutir ----
+      let capaSrc = null;
+      const capaEl = document.getElementById("roteiro-capa");
+      if (capaEl) {
+        const mt = (capaEl.style.backgroundImage || "").match(/url\(["']?(.*?)["']?\)/);
+        if (mt) capaSrc = mt[1];
+      }
+      const fotoSrcs = [...document.querySelectorAll("#roteiro-conteudo .atividade")]
+        .map(el => { const im = el.querySelector("img"); return im ? im.src : null; });
+
+      const capaImg = capaSrc ? await imagemParaDataURL(capaSrc, 1000) : null;
+      const fotos = [];
+      let fi = 0;
+      await Promise.all(Array.from({ length: Math.min(4, fotoSrcs.length) }, async () => {
+        while (fi < fotoSrcs.length) {
+          const k = fi++;
+          fotos[k] = fotoSrcs[k] ? await imagemParaDataURL(fotoSrcs[k], 360) : null;
+        }
+      }));
 
       function novaPaginaSe(h) { if (y + h > H - m - rodapeH) { doc.addPage(); y = m; } }
       function linhaSep() {
@@ -1249,25 +1291,49 @@ Crie uma NOVA versão desse dia, diferente da atual, com a mesma qualidade.
         y += boxH + 12;
       }
 
-      // ---- Capa ----
-      doc.setFillColor.apply(doc, AZUL); doc.rect(0, 0, W, 120, "F");
-      doc.setFillColor.apply(doc, CIANO); doc.rect(0, 108, W, 8, "F");
-      doc.setFillColor.apply(doc, LARANJA); doc.rect(0, 116, W, 4, "F");
-      doc.setTextColor(255, 255, 255);
-      doc.setFont("helvetica", "bold"); doc.setFontSize(22);
-      doc.text(doc.splitTextToSize(r.destino || "Roteiro de viagem", cw), m, 46);
-      doc.setFont("helvetica", "normal"); doc.setFontSize(10.5);
       const nDias = (r.dias && r.dias.length) || 0;
       const nViaj = r.viajantes || 1;
-      doc.text("Roteiro de " + nDias + (nDias === 1 ? " dia" : " dias") +
-        "   |   " + nViaj + (nViaj === 1 ? " viajante" : " viajantes"), m, 66);
-      if (r.resumo) {
-        doc.setFontSize(9.5);
-        doc.text(doc.splitTextToSize(r.resumo, cw).slice(0, 3), m, 84);
+      const subCapa = "Roteiro de " + nDias + (nDias === 1 ? " dia" : " dias") +
+        "   |   " + nViaj + (nViaj === 1 ? " viajante" : " viajantes");
+
+      // ---- Capa (com foto do destino, se houver) ----
+      if (capaImg) {
+        const bandH = 168;
+        doc.addImage(capaImg.data, "JPEG", 0, 0, W, bandH, undefined, "FAST");
+        // faixa escura translúcida no rodapé da foto para o texto ficar legível
+        if (doc.GState) {
+          doc.saveGraphicsState();
+          doc.setGState(new doc.GState({ opacity: 0.5 }));
+          doc.setFillColor(8, 16, 26); doc.rect(0, bandH - 80, W, 80, "F");
+          doc.restoreGraphicsState();
+        }
+        doc.setFillColor.apply(doc, LARANJA); doc.rect(0, bandH, W, 5, "F");
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold"); doc.setFontSize(22);
+        doc.text(doc.splitTextToSize(r.destino || "Roteiro de viagem", cw)[0], m, bandH - 40);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(10.5);
+        doc.text(subCapa, m, bandH - 20);
+        y = bandH + 20;
+        if (r.resumo) {
+          doc.setTextColor.apply(doc, TINTA); doc.setFontSize(9.5);
+          doc.splitTextToSize(r.resumo, cw).slice(0, 4).forEach(l => { doc.text(l, m, y); y += 13; });
+        }
+        y += 10;
+      } else {
+        doc.setFillColor.apply(doc, AZUL); doc.rect(0, 0, W, 120, "F");
+        doc.setFillColor.apply(doc, CIANO); doc.rect(0, 108, W, 8, "F");
+        doc.setFillColor.apply(doc, LARANJA); doc.rect(0, 116, W, 4, "F");
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold"); doc.setFontSize(22);
+        doc.text(doc.splitTextToSize(r.destino || "Roteiro de viagem", cw), m, 46);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(10.5);
+        doc.text(subCapa, m, 66);
+        if (r.resumo) { doc.setFontSize(9.5); doc.text(doc.splitTextToSize(r.resumo, cw).slice(0, 3), m, 84); }
+        y = 150;
       }
-      y = 150;
 
       // ---- Dias ----
+      let fotoPtr = 0;
       r.dias.forEach(d => {
         novaPaginaSe(50);
         doc.setFillColor.apply(doc, CIANO);
@@ -1278,16 +1344,39 @@ Crie uma NOVA versão desse dia, diferente da atual, com a mesma qualidade.
         y += 42;
 
         (d.atividades || []).forEach((a, idxA) => {
-          novaPaginaSe(70);
+          const foto = fotos[fotoPtr++];
+          const temFoto = !!(foto && foto.data);
+          const imgW = 116, imgH = 80;
+          const tx = temFoto ? m + imgW + 14 : m;  // x do texto
+          const tw = temFoto ? cw - imgW - 14 : cw; // largura do texto
+
+          // mede o bloco para decidir a quebra de página antes de desenhar
+          doc.setFont("helvetica", "bold"); doc.setFontSize(11.5);
+          const nomeLines = doc.splitTextToSize(a.nome || "", tw);
+          doc.setFont("helvetica", "normal"); doc.setFontSize(9.5);
+          const descLines = a.descricao ? doc.splitTextToSize(a.descricao, tw) : [];
+          const textoH = nomeLines.length * 15 + 2 + 18 + descLines.length * 13;
+          const blocoH = Math.max(temFoto ? imgH : 0, textoH);
+          novaPaginaSe(blocoH + 16);
           if (idxA > 0) linhaSep();
 
-          // nome da atividade
+          const yStart = y;
+          if (temFoto) {
+            try {
+              doc.addImage(foto.data, "JPEG", m, yStart, imgW, imgH, undefined, "FAST");
+              doc.setDrawColor(225, 231, 238); doc.setLineWidth(0.6);
+              doc.roundedRect(m, yStart, imgW, imgH, 4, 4, "S");
+            } catch (e) { /* falha ao embutir: segue sem a foto */ }
+          }
+
+          // nome (coluna de texto, ao lado da foto)
+          y = yStart + 12;
           doc.setTextColor.apply(doc, TINTA); doc.setFont("helvetica", "bold"); doc.setFontSize(11.5);
-          doc.splitTextToSize(a.nome || "", cw).forEach(l => { novaPaginaSe(15); doc.text(l, m, y); y += 15; });
+          nomeLines.forEach(l => { doc.text(l, tx, y); y += 15; });
           y += 2;
 
           // chips: período / tipo / preço
-          let x = m;
+          let x = tx;
           const chips = [
             { t: a.periodo, fill: [227, 242, 253], color: [21, 101, 192] },
             { t: a.tipo, fill: [255, 243, 224], color: [230, 81, 0] },
@@ -1296,23 +1385,26 @@ Crie uma NOVA versão desse dia, diferente da atual, com a mesma qualidade.
           doc.setFont("helvetica", "bold"); doc.setFontSize(8);
           chips.forEach(c => {
             if (!c.t) return;
-            const tw = doc.getTextWidth(c.t) + 14;
-            if (x + tw > m + cw) { x = m; y += 18; }
+            const cwid = doc.getTextWidth(c.t) + 14;
+            if (x + cwid > tx + tw) { x = tx; y += 18; }
             doc.setFillColor(c.fill[0], c.fill[1], c.fill[2]);
-            doc.roundedRect(x, y - 9, tw, 14, 7, 7, "F");
+            doc.roundedRect(x, y - 9, cwid, 14, 7, 7, "F");
             doc.setTextColor(c.color[0], c.color[1], c.color[2]);
             doc.text(c.t, x + 7, y + 0.5);
-            x += tw + 6;
+            x += cwid + 6;
           });
           y += 18;
 
           // descrição
-          if (a.descricao) {
+          if (descLines.length) {
             doc.setTextColor(52, 73, 94); doc.setFont("helvetica", "normal"); doc.setFontSize(9.5);
-            doc.splitTextToSize(a.descricao, cw).forEach(l => { novaPaginaSe(13); doc.text(l, m, y); y += 13; });
+            descLines.forEach(l => { doc.text(l, tx, y); y += 13; });
           }
 
-          // perto daqui
+          // garante que o conteúdo ultrapasse a altura da foto antes de seguir
+          if (temFoto && y < yStart + imgH + 6) y = yStart + imgH + 6;
+
+          // perto daqui (largura cheia, abaixo da foto+texto)
           if (a.proximos && a.proximos.length) {
             y += 2; novaPaginaSe(14);
             doc.setTextColor(46, 125, 50); doc.setFont("helvetica", "bold"); doc.setFontSize(8.5);
@@ -1323,7 +1415,7 @@ Crie uma NOVA versão desse dia, diferente da atual, com a mesma qualidade.
               doc.splitTextToSize(txt, cw - 12).forEach(l => { novaPaginaSe(12); doc.text(l, m + 10, y); y += 12; });
             });
           }
-          y += 10;
+          y += 12;
         });
         y += 8;
       });
@@ -1378,12 +1470,14 @@ Crie uma NOVA versão desse dia, diferente da atual, com a mesma qualidade.
     }
 
     // Baixa o PDF bonito (botão ⬇️ PDF)
-    function baixarPdf() {
+    async function baixarPdf() {
       if (!roteiroAtual) return;
       if (!window.jspdf) { feedback("Aguarde o carregamento e tente de novo."); return; }
+      feedback("Gerando PDF com fotos...");
       try {
         const nome = "roteiro-" + (roteiroAtual.destino || "viagem").replace(/[^\w]+/g, "-").toLowerCase() + ".pdf";
-        construirPdf().save(nome);
+        const doc = await construirPdf();
+        doc.save(nome);
         feedback("✓ PDF gerado!");
       } catch (e) {
         feedback("Não foi possível gerar o PDF.");
@@ -1394,8 +1488,9 @@ Crie uma NOVA versão desse dia, diferente da atual, com a mesma qualidade.
       if (!roteiroAtual) return;
       if (!window.jspdf) { feedback("Aguarde o carregamento e tente de novo."); return; }
       let blob, file;
+      feedback("Gerando PDF com fotos...");
       try {
-        blob = construirPdf().output("blob");
+        blob = (await construirPdf()).output("blob");
         const nome = "roteiro-" + (roteiroAtual.destino || "viagem").replace(/[^\w]+/g, "-").toLowerCase() + ".pdf";
         file = new File([blob], nome, { type: "application/pdf" });
       } catch (e) {
