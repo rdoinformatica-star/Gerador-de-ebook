@@ -133,15 +133,22 @@
 
     /* Loading */
     #loading { display: none; text-align: center; padding: 40px 20px; }
-    .spinner {
-      width: 42px; height: 42px;
-      border: 4px solid #cfe3ee;
-      border-top-color: #168aad;
-      border-radius: 50%;
-      margin: 0 auto 14px;
-      animation: spin 1s linear infinite;
+    /* Aviãozinho voando com rastro (substitui o spinner) */
+    .aviao-cena { position: relative; width: 260px; height: 60px; margin: 0 auto 14px; overflow: hidden; }
+    .aviao-voo { position: absolute; top: 0; left: 0; animation: voar 2.8s ease-in-out infinite; }
+    .aviao-voo .plane { font-size: 32px; display: inline-block; transform: rotate(-6deg); filter: drop-shadow(0 3px 4px rgba(0,0,0,.22)); }
+    .aviao-voo .trail {
+      position: absolute; right: 100%; top: 58%; width: 70px; height: 0;
+      border-top: 3px dotted #9fc3d6; transform: translateY(-50%);
+      -webkit-mask-image: linear-gradient(to left, #000, transparent);
+              mask-image: linear-gradient(to left, #000, transparent);
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes voar {
+      0%   { transform: translate(-50px, 26px); }
+      50%  { transform: translate(120px, 6px); }
+      100% { transform: translate(290px, 26px); }
+    }
+    body.dark .aviao-voo .trail { border-color: #3a5163; }
     .barra-prog { width: 100%; max-width: 360px; height: 10px; background: #d9e6ef; border-radius: 6px; margin: 16px auto 4px; overflow: hidden; }
     .barra-prog-fill { width: 0%; height: 100%; background: linear-gradient(90deg, #168aad, #2ec4b6); border-radius: 6px; transition: width .3s ease; }
     body.dark .barra-prog { background: #243140; }
@@ -474,7 +481,7 @@
 
     <!-- Loading -->
     <div class="card" id="loading">
-      <div class="spinner"></div>
+      <div class="aviao-cena"><div class="aviao-voo"><span class="trail"></span><span class="plane">✈️</span></div></div>
       <p id="loading-msg">Criando seu roteiro personalizado...</p>
       <div class="barra-prog"><div class="barra-prog-fill" id="barra-fill"></div></div>
       <div class="muted">Isso pode levar de 20 a 60 segundos.</div>
