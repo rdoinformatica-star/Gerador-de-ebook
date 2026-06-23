@@ -244,6 +244,11 @@
     .orcamento { background: #fff8e1; border: 1px solid #ffe082; border-radius: 11px; padding: 14px 16px; margin-top: 14px; font-size: 14px; color: #5d4037; line-height: 1.6; }
     .orcamento .muted { margin-top: 6px; }
 
+    .dicas-locais { background: #eef6ff; border: 1px solid #c7defa; border-radius: 11px; padding: 16px; margin-top: 14px; }
+    .dicas-locais-titulo { font-weight: 800; color: #1e6091; margin-bottom: 10px; font-size: 15px; }
+    .dica-local { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: #34495e; line-height: 1.5; margin: 7px 0; }
+    .dica-ic { font-size: 18px; flex-shrink: 0; }
+
     .previsao { margin: 4px 0 20px; }
     .previsao-titulo { font-weight: 700; color: #1e6091; margin-bottom: 8px; font-size: 15px; }
     .previsao-aviso { background: #eef4f8; border-radius: 9px; padding: 10px 12px; font-size: 13px; color: #45586b; }
@@ -540,9 +545,22 @@
             required: ["dia", "titulo", "regiao", "atividades"]
           }
         },
-        dica_orcamento: { type: "STRING" }
+        dica_orcamento: { type: "STRING" },
+        dicas_locais: {
+          type: "OBJECT",
+          properties: {
+            moeda: { type: "STRING" },
+            gorjeta: { type: "STRING" },
+            tomada: { type: "STRING" },
+            emergencia: { type: "STRING" },
+            idioma: { type: "STRING" },
+            transporte_aeroporto: { type: "STRING" },
+            seguranca: { type: "STRING" }
+          },
+          required: ["moeda", "gorjeta", "tomada", "emergencia", "idioma", "transporte_aeroporto", "seguranca"]
+        }
       },
-      required: ["destino", "resumo", "dias", "dica_orcamento"]
+      required: ["destino", "resumo", "dias", "dica_orcamento", "dicas_locais"]
     };
 
     // ===== Gerar roteiro =====
@@ -598,6 +616,7 @@ Instruções:
 - Em "preco_estimado", dê uma faixa aproximada na moeda local (deixe claro que é uma estimativa, ex: "~€22" ou "€30-50").
 - Em "termo_foto", coloque o nome do local exatamente como apareceria na Wikipédia para buscar uma foto (ex: "Museu do Louvre", "Torre Eiffel", "Montmartre").
 - Em "proximos", liste de 2 a 3 sugestões IMPERDÍVEIS que ficam BEM PERTO daquele local (a poucos minutos a pé): cafés especiais, comidas/restaurantes típicos e lojas/compras imperdíveis. Para cada uma: "nome" (nome real do estabelecimento ou lugar), "tipo" ("Café", "Comida" ou "Compras") e "nota" (uma frase curta dizendo por que vale a pena). Devem ser locais reais e próximos da atividade, não genéricos.
+- Preencha "dicas_locais" com informações práticas e reais do destino: moeda local e formas de pagamento aceitas, costume de gorjeta, tipo de tomada e voltagem, telefones de emergência locais, 3 a 5 frases básicas úteis no idioma local (com a tradução em português), como ir do aeroporto até o centro, e uma dica de segurança.
 - Responda inteiramente em português.`;
 
       let promptFinal = prompt;
@@ -607,7 +626,7 @@ Instruções:
 Use a busca na web para trazer informações ATUAIS (preços recentes, novidades e eventos do período da viagem).
 
 Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem texto antes ou depois — exatamente nesta estrutura:
-{"destino": "texto", "resumo": "texto", "dias": [{"dia": 1, "titulo": "texto", "regiao": "texto", "atividades": [{"periodo": "texto", "nome": "texto", "tipo": "texto", "descricao": "texto", "preco_estimado": "texto", "termo_foto": "texto", "proximos": [{"nome": "texto", "tipo": "Café", "nota": "texto"}]}]}], "dica_orcamento": "texto"}`;
+{"destino": "texto", "resumo": "texto", "dias": [{"dia": 1, "titulo": "texto", "regiao": "texto", "atividades": [{"periodo": "texto", "nome": "texto", "tipo": "texto", "descricao": "texto", "preco_estimado": "texto", "termo_foto": "texto", "proximos": [{"nome": "texto", "tipo": "Café", "nota": "texto"}]}]}], "dica_orcamento": "texto", "dicas_locais": {"moeda": "texto", "gorjeta": "texto", "tomada": "texto", "emergencia": "texto", "idioma": "texto", "transporte_aeroporto": "texto", "seguranca": "texto"}}`;
       }
 
       mostrar("loading");
@@ -745,6 +764,23 @@ Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem tex
       }
 
       html += `<div class="dica"><strong>💰 Dica de orçamento:</strong> ${escapar(r.dica_orcamento)}</div>`;
+
+      if (r.dicas_locais) {
+        const d = r.dicas_locais;
+        const linha = (ic, titulo, txt) => txt
+          ? `<div class="dica-local"><span class="dica-ic">${ic}</span><div><strong>${titulo}:</strong> ${escapar(txt)}</div></div>`
+          : "";
+        html += `<div class="dicas-locais">
+            <div class="dicas-locais-titulo">🪪 Dicas locais — bom saber antes de ir</div>
+            ${linha("💱", "Moeda e pagamento", d.moeda)}
+            ${linha("🪙", "Gorjeta", d.gorjeta)}
+            ${linha("🔌", "Tomada e voltagem", d.tomada)}
+            ${linha("🚨", "Emergência", d.emergencia)}
+            ${linha("🗣️", "Frases no idioma", d.idioma)}
+            ${linha("🛬", "Do aeroporto ao centro", d.transporte_aeroporto)}
+            ${linha("🛡️", "Segurança", d.seguranca)}
+          </div>`;
+      }
       document.getElementById("roteiro-conteudo").innerHTML = html;
 
       // Busca as fotos de forma assíncrona (sem travar a tela)
