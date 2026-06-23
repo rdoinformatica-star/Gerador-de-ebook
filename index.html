@@ -7,6 +7,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
     * { box-sizing: border-box; }
+    html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     body {
       margin: 0;
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -141,6 +142,9 @@
       animation: spin 1s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+    .barra-prog { width: 100%; max-width: 360px; height: 10px; background: #d9e6ef; border-radius: 6px; margin: 16px auto 4px; overflow: hidden; }
+    .barra-prog-fill { width: 0%; height: 100%; background: linear-gradient(90deg, #168aad, #2ec4b6); border-radius: 6px; transition: width .3s ease; }
+    body.dark .barra-prog { background: #243140; }
 
     #erro { display: none; }
     .erro-box { background: #fdecea; border: 1px solid #f5c6c2; color: #8a1c12; border-radius: 9px; padding: 14px; font-size: 14px; }
@@ -281,6 +285,55 @@
     .clima-temp { font-size: 13px; font-weight: 700; color: #1a2238; }
     .clima-chuva { font-size: 11px; color: #1565c0; }
 
+    .feriados { margin: 4px 0 20px; background: #fff8e1; border: 1px solid #ffe082; border-radius: 11px; padding: 14px 16px; }
+    .feriados-titulo { font-weight: 800; color: #b26a00; margin-bottom: 8px; font-size: 15px; }
+    .feriado-item { font-size: 14px; color: #5d4037; margin: 5px 0; }
+    body.dark .feriados { background: #2a2410; border-color: #5a4d18; }
+    body.dark .feriado-item { color: #e3d9b8; }
+    body.dark .feriados-titulo { color: #e0b84f; }
+
+    /* Trajeto entre os pontos */
+    .trajeto { text-align: center; margin: -2px 0 10px; }
+    .trajeto-linha { display: inline-block; font-size: 12px; font-weight: 600; color: #5a7184; background: #eef4f8; border: 1px solid #e0e8f0; border-radius: 20px; padding: 3px 12px; }
+
+    /* O que levar na mala */
+    .mala { margin-top: 12px; background: #f3f0ff; border: 1px solid #d9d0f5; border-radius: 11px; padding: 14px 16px; }
+    .mala-titulo { font-weight: 800; color: #5e35b1; margin-bottom: 8px; font-size: 15px; }
+    .mala-itens { display: flex; flex-wrap: wrap; gap: 8px; }
+    .mala-item { background: #fff; border: 1px solid #e2dbf3; border-radius: 18px; padding: 5px 12px; font-size: 13px; color: #43325f; }
+
+    /* Botão de modo escuro */
+    .btn-tema {
+      position: absolute; top: 16px; right: 16px;
+      width: 40px; height: 40px; border-radius: 50%;
+      border: none; cursor: pointer; font-size: 18px; line-height: 1;
+      background: rgba(255,255,255,.22); color: #fff; transition: background .15s;
+    }
+    .btn-tema:hover { background: rgba(255,255,255,.36); }
+
+    /* ===== Modo escuro ===== */
+    body.dark { background: #0f1722; color: #e4ebf3; }
+    body.dark .card { background: #18222f; box-shadow: 0 1px 6px rgba(0,0,0,.4); }
+    body.dark .card h2 { color: #6fc3dd; }
+    body.dark input, body.dark select, body.dark textarea { background: #0f1722; color: #e4ebf3; border-color: #2c3a4b; }
+    body.dark label { color: #c5d2df; }
+    body.dark .chip { background: #18222f; color: #c5d2df; border-color: #2c3a4b; }
+    body.dark .chip.active { background: #168aad; color: #fff; border-color: #168aad; }
+    body.dark .sugestoes { background: #18222f; border-color: #2c3a4b; }
+    body.dark .sugestao { border-color: #243140; }
+    body.dark .sugestao:hover { background: #233244; }
+    body.dark .atividade { background: #131c27; border-color: #243140; }
+    body.dark .atividade-info p { color: #b9c6d4; }
+    body.dark .muted { color: #8b9aac; }
+    body.dark details summary { color: #6fc3dd; }
+    body.dark .trajeto-linha { background: #1a2735; color: #9fb1c4; border-color: #2c3a4b; }
+    body.dark .erro-box { background: #3a1714; border-color: #6b2a22; color: #f3b4ad; }
+    body.dark .salvo-item { border-color: #243140; }
+    body.dark .previsao-aviso { background: #1a2735; color: #b9c6d4; }
+    body.dark .clima-card { background: #18222f; border-color: #243140; }
+    body.dark .clima-temp { color: #e4ebf3; }
+    body.dark .clima-data { color: #9fb1c4; }
+
     @media print {
       header, .no-print { display: none !important; }
       body { background: #fff; }
@@ -296,6 +349,7 @@
     <h1>🗺️ Gerador de Roteiro de Viagem</h1>
     <p>✈️ Diga seu destino e seus gostos — a IA monta o roteiro perfeito pra você, com fotos, mapa, clima e orçamento.</p>
     <div class="header-emojis">🌍 · 🏖️ · 🏛️ · 🍽️ · 📸</div>
+    <button id="btn-tema" class="btn-tema" onclick="alternarTema()" title="Alternar modo escuro" aria-label="Alternar modo escuro">🌙</button>
   </header>
 
   <div class="container">
@@ -353,6 +407,7 @@
         <div class="chip" data-v="Compras">🛍️ Compras</div>
         <div class="chip" data-v="História e arquitetura">🏰 História</div>
         <div class="chip" data-v="Pontos instagramáveis">📸 Fotos</div>
+        <div class="chip" data-v="Lugares fora do óbvio, frequentados pelos moradores locais" title="Lugares fora do circuito super turístico, onde os locais realmente vão">🧭 Fora do óbvio</div>
       </div>
 
       <label for="extra" style="margin-top:14px">Outros gostos ou observações (opcional)</label>
@@ -394,6 +449,10 @@
         </div>
       </div>
 
+      <label for="orcamento-alvo" style="margin-top:14px">Tem um valor em mente? (opcional)</label>
+      <input type="text" id="orcamento-alvo" placeholder="Ex: R$ 3.000 por pessoa (sem hospedagem/passagem)">
+      <div class="muted">A IA tenta montar o roteiro para caber nesse valor (atividades, passeios e refeições).</div>
+
       <label style="display:flex; align-items:center; gap:8px; margin-top:16px; cursor:pointer">
         <input type="checkbox" id="aovivo" checked style="width:auto; margin:0">
         🌐 Buscar dados ao vivo na web (preços e novidades mais atuais)
@@ -412,6 +471,7 @@
     <div class="card" id="loading">
       <div class="spinner"></div>
       <p id="loading-msg">Criando seu roteiro personalizado...</p>
+      <div class="barra-prog"><div class="barra-prog-fill" id="barra-fill"></div></div>
       <div class="muted">Isso pode levar de 20 a 60 segundos.</div>
     </div>
 
@@ -426,7 +486,7 @@
         <button class="btn btn-ghost btn-small" onclick="salvarRoteiro()">💾 Salvar</button>
         <button class="btn btn-ghost btn-small" id="btn-whatsapp" style="display:none" onclick="compartilharWhatsApp()">📱 WhatsApp (PDF)</button>
         <button class="btn btn-ghost btn-small" onclick="copiarTexto()">📋 Copiar</button>
-        <button class="btn btn-ghost btn-small" onclick="window.print()">⬇️ PDF</button>
+        <button class="btn btn-ghost btn-small" onclick="baixarPdf()">⬇️ PDF</button>
         <button class="btn btn-ghost btn-small" onclick="novo()">🔄 Novo</button>
       </div>
       <div class="no-print" style="text-align:right; margin-bottom:14px">
@@ -585,6 +645,127 @@
       required: ["destino", "resumo", "dias", "dica_orcamento", "dicas_locais"]
     };
 
+    // ===== Mensagens rotativas enquanto a IA trabalha =====
+    const LOADING_MSGS = [
+      "Pesquisando os melhores lugares...",
+      "Organizando o roteiro por bairro...",
+      "Escolhendo restaurantes pertinho das atrações...",
+      "Calculando preços e dicas de orçamento...",
+      "Separando experiências imperdíveis...",
+      "Dando os retoques finais... ✨"
+    ];
+    let loadingTimer = null, progTimer = null, progInicio = 0;
+
+    // Estimativa de duração: média das últimas gerações (aprende com o uso)
+    function estimativaMs() {
+      let arr = [];
+      try { arr = JSON.parse(localStorage.getItem("tempos_geracao")) || []; } catch (e) {}
+      if (!arr.length) return 30000; // 1ª vez: chuta 30s
+      const media = arr.reduce((s, v) => s + v, 0) / arr.length;
+      return Math.min(90000, Math.max(8000, media)); // entre 8s e 90s
+    }
+    function registrarTempo(ms) {
+      let arr = [];
+      try { arr = JSON.parse(localStorage.getItem("tempos_geracao")) || []; } catch (e) {}
+      arr.push(ms);
+      localStorage.setItem("tempos_geracao", JSON.stringify(arr.slice(-5))); // guarda as últimas 5
+    }
+
+    function iniciarLoading() {
+      const el = document.getElementById("loading-msg");
+      let i = 0;
+      if (el) el.textContent = LOADING_MSGS[0];
+      clearInterval(loadingTimer);
+      loadingTimer = setInterval(() => {
+        i = (i + 1) % LOADING_MSGS.length;
+        if (el) el.textContent = LOADING_MSGS[i];
+      }, 3500);
+
+      // Barra de progresso: enche em direção à média, desacelerando perto do fim
+      const fill = document.getElementById("barra-fill");
+      if (fill) fill.style.width = "0%";
+      progInicio = Date.now();
+      const estimativa = estimativaMs();
+      clearInterval(progTimer);
+      progTimer = setInterval(() => {
+        const decorrido = Date.now() - progInicio;
+        // curva que tende a 100% mas nunca chega até concluir (trava em 95%)
+        const pct = Math.min(95, (1 - Math.exp(-decorrido / estimativa)) * 100);
+        if (fill) fill.style.width = pct.toFixed(1) + "%";
+      }, 200);
+    }
+
+    function pararLoading(sucesso) {
+      clearInterval(loadingTimer); loadingTimer = null;
+      clearInterval(progTimer); progTimer = null;
+      const fill = document.getElementById("barra-fill");
+      if (sucesso) {
+        if (fill) fill.style.width = "100%"; // completa no instante em que o roteiro fica pronto
+        registrarTempo(Date.now() - progInicio); // aprende o tempo real desta vez
+      }
+    }
+
+    // fetch com tempo limite (evita ficar travado para sempre)
+    function fetchComTimeout(url, opts, ms) {
+      const ctrl = new AbortController();
+      const id = setTimeout(() => ctrl.abort(), ms);
+      return fetch(url, Object.assign({}, opts, { signal: ctrl.signal }))
+        .finally(() => clearTimeout(id));
+    }
+
+    // Chama a IA (com tempo limite, novas tentativas e leitura tolerante do JSON)
+    async function pedirIA({ prompt, schema, aoVivo, senha }) {
+      const payload = JSON.stringify({ prompt, aoVivo, schema: aoVivo ? null : schema, senha });
+      const espera = ms => new Promise(r => setTimeout(r, ms));
+      let ultimoErro = null;
+      for (let tentativa = 1; tentativa <= 3; tentativa++) {
+        let resp;
+        try {
+          resp = await fetchComTimeout("/api/roteiro", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: payload
+          }, 90000);
+        } catch (e) {
+          ultimoErro = (e && e.name === "AbortError")
+            ? "A inteligência artificial demorou demais para responder."
+            : "Falha de conexão. Verifique a internet.";
+          await espera(1200);
+          continue; // tenta de novo
+        }
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+          if (resp.status === 401) {
+            document.getElementById("config-api").open = true;
+            throw new Error("Senha de acesso incorreta ou ausente. Digite a senha em 🔓 Acesso (no topo).");
+          }
+          const detalhe = (data && data.error) ? data.error : "";
+          const ehLimite = resp.status === 429 || /quota|rate|resource_exhausted|exceeded|limit/i.test(detalhe);
+          if (ehLimite) {
+            throw new Error("⏳ Muitos pedidos à inteligência artificial neste momento. Espere cerca de 1 minutinho e tente de novo. (Se acontecer o dia todo, pode ser o limite diário do plano gratuito, que renova de madrugada.)");
+          }
+          ultimoErro = detalhe || ("Erro " + resp.status);
+          if (resp.status >= 500) { await espera(1200); continue; } // servidor: tenta de novo
+          throw new Error(ultimoErro); // erro do pedido: não adianta repetir
+        }
+        let texto = (data.text || "").trim()
+          .replace(/^```json\s*/i, "").replace(/^```\s*/, "").replace(/```\s*$/, "").trim();
+        const ini = texto.indexOf("{"), fim = texto.lastIndexOf("}");
+        if (ini >= 0 && fim > ini) texto = texto.slice(ini, fim + 1);
+        if (!texto) { ultimoErro = "A IA não retornou um roteiro."; await espera(800); continue; }
+        try {
+          return JSON.parse(texto); // sucesso!
+        } catch (e) {
+          // JSON torto/cortado (acontece com roteiros muito longos) -> tenta de novo
+          ultimoErro = "A IA devolveu o roteiro num formato inesperado (pode ter ficado longo demais).";
+          await espera(800);
+        }
+      }
+      let msg = (ultimoErro || "Não foi possível gerar o roteiro.") + " Tente novamente";
+      if (/formato inesperado|longo/.test(ultimoErro || "")) msg += " — se a viagem tiver muitos dias, gere com menos dias";
+      throw new Error(msg + ".");
+    }
+
     // ===== Gerar roteiro =====
     async function gerar() {
       const senha = localStorage.getItem("acesso_senha");
@@ -611,10 +792,17 @@
       const aoVivo = document.getElementById("aovivo").checked;
       const viajantes = document.getElementById("viajantes").value || "1";
       const dataInicio = document.getElementById("data-inicio").value || "";
+      const orcamentoAlvo = document.getElementById("orcamento-alvo").value.trim();
 
       const listaInteresses = interesses.length ? interesses.join(", ") : "interesses gerais de turismo";
       const instrucaoUnicas = interesses.includes("Experiências únicas e locais")
         ? "\n- O viajante marcou \"Experiências únicas\": inclua OBRIGATORIAMENTE os principais cartões-postais e atrações icônicas e imperdíveis do destino — aqueles pontos que são \"carta marcada\", que praticamente todo visitante precisa conhecer (ex.: Torre Eiffel em Paris, Cristo Redentor no Rio) — além de experiências locais autênticas e memoráveis."
+        : "";
+      const instrucaoForaDoObvio = interesses.includes("Lugares fora do óbvio, frequentados pelos moradores locais")
+        ? "\n- O viajante marcou \"Fora do óbvio\": priorize fortemente lugares AUTÊNTICOS e fora do circuito super turístico — bairros, bares, restaurantes, mercados, mirantes e experiências que os MORADORES LOCAIS realmente frequentam, e não as armadilhas para turistas. Evite o trivial e o lotado; prefira joias escondidas, sensacionais e pouco divulgadas. Quando sugerir um ponto famoso, dê uma alternativa local equivalente ou uma forma menos óbvia de vivê-lo. Em \"descricao\", explique por que aquele lugar é especial para quem mora ali."
+        : "";
+      const instrucaoOrcAlvo = orcamentoAlvo
+        ? `\n- ORÇAMENTO-ALVO: o viajante quer gastar cerca de ${orcamentoAlvo}. Monte o roteiro para CABER nesse valor (somando as atividades, passeios e refeições sugeridas; não inclua hospedagem nem passagens). Ajuste a quantidade e a categoria das atividades para respeitar esse teto, priorizando opções gratuitas ou econômicas quando necessário, sem deixar o roteiro pobre. No "resumo" e em "dica_orcamento", informe o custo total estimado e diga claramente se ficou dentro do valor desejado.`
         : "";
 
       const prompt = `Crie um roteiro de viagem personalizado, detalhado e bem organizado.
@@ -633,7 +821,7 @@ Instruções:
 - MUITO IMPORTANTE — organize cada dia GEOGRAFICAMENTE: agrupe no mesmo dia atividades que ficam na mesma região/bairro e coloque-as em uma ordem lógica de deslocamento, de modo que a pessoa vá de um ponto ao próximo que esteja perto, caminhando ou com transporte curto, sem ficar atravessando a cidade para frente e para trás. Escolha restaurantes próximos das atrações daquele mesmo dia.
 - Em "regiao", informe o bairro ou a zona principal que o dia cobre (ex: "Belém", "Centro Histórico", "Montmartre").
 - Para cada dia, distribua atividades entre manhã, tarde e noite, alinhadas aos interesses informados.
-- Inclua restaurantes, atrações e experiências reais e conhecidas do destino.${instrucaoUnicas}
+- Inclua restaurantes, atrações e experiências reais e conhecidas do destino.${instrucaoUnicas}${instrucaoForaDoObvio}${instrucaoOrcAlvo}
 - Em "descricao", escreva 2 a 3 frases envolventes sobre o local.
 - Em "preco_estimado", dê uma faixa aproximada na moeda local (deixe claro que é uma estimativa, ex: "~€22" ou "€30-50").
 - Em "termo_foto", coloque o nome do local exatamente como apareceria na Wikipédia para buscar uma foto (ex: "Museu do Louvre", "Torre Eiffel", "Montmartre").
@@ -652,67 +840,69 @@ Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem tex
       }
 
       mostrar("loading");
+      iniciarLoading();
       document.getElementById("btn-gerar").disabled = true;
 
+      let ok = false;
       try {
-        const payload = JSON.stringify({ prompt: promptFinal, aoVivo, schema: aoVivo ? null : SCHEMA, senha });
-        const espera = ms => new Promise(r => setTimeout(r, ms));
-
-        let roteiro = null, ultimoErro = null;
-        for (let tentativa = 1; tentativa <= 3; tentativa++) {
-          let resp;
-          try {
-            resp = await fetch("/api/roteiro", {
-              method: "POST",
-              headers: { "content-type": "application/json" },
-              body: payload
-            });
-          } catch (e) {
-            ultimoErro = "Falha de conexão. Verifique a internet.";
-            await espera(1200);
-            continue; // tenta de novo
-          }
-          const data = await resp.json().catch(() => ({}));
-          if (!resp.ok) {
-            if (resp.status === 401) {
-              document.getElementById("config-api").open = true;
-              throw new Error("Senha de acesso incorreta ou ausente. Digite a senha em 🔓 Acesso (no topo).");
-            }
-            const detalhe = (data && data.error) ? data.error : "";
-            const ehLimite = resp.status === 429 || /quota|rate|resource_exhausted|exceeded|limit/i.test(detalhe);
-            if (ehLimite) {
-              throw new Error("⏳ Muitos pedidos à inteligência artificial neste momento. Espere cerca de 1 minutinho e tente de novo. (Se acontecer o dia todo, pode ser o limite diário do plano gratuito, que renova de madrugada.)");
-            }
-            ultimoErro = detalhe || ("Erro " + resp.status);
-            if (resp.status >= 500) { await espera(1200); continue; } // servidor: tenta de novo
-            throw new Error(ultimoErro); // erro do pedido: não adianta repetir
-          }
-          let texto = (data.text || "").trim()
-            .replace(/^```json\s*/i, "").replace(/^```\s*/, "").replace(/```\s*$/, "").trim();
-          const ini = texto.indexOf("{"), fim = texto.lastIndexOf("}");
-          if (ini >= 0 && fim > ini) texto = texto.slice(ini, fim + 1);
-          if (!texto) { ultimoErro = "A IA não retornou um roteiro."; await espera(800); continue; }
-          try {
-            roteiro = JSON.parse(texto);
-            break; // sucesso!
-          } catch (e) {
-            // JSON torto (acontece às vezes na busca ao vivo) -> tenta de novo sozinho
-            ultimoErro = "A IA devolveu o roteiro num formato inesperado.";
-            await espera(800);
-          }
-        }
-        if (!roteiro) throw new Error((ultimoErro || "Não foi possível gerar o roteiro.") + " Tente novamente.");
-
+        const roteiro = await pedirIA({ prompt: promptFinal, schema: SCHEMA, aoVivo, senha });
         roteiro.viajantes = parseInt(viajantes) || 1;
         roteiro.dataInicio = dataInicio;
+        // guarda o contexto do pedido para permitir "Trocar este dia" depois
+        roteiro._ctx = { destino, listaInteresses, extra, ritmo, orcamento, mes, aoVivo, instrucaoUnicas, instrucaoForaDoObvio, instrucaoOrcAlvo };
         roteiroAtual = roteiro;
         renderRoteiro(roteiro);
         mostrar("roteiro");
+        ok = true;
       } catch (e) {
         document.getElementById("erro-msg").textContent = e.message || String(e);
         mostrar("erro");
       } finally {
+        pararLoading(ok);
         document.getElementById("btn-gerar").disabled = false;
+      }
+    }
+
+    // ===== Trocar (regerar) um único dia =====
+    async function regerarDia(idx) {
+      const r = roteiroAtual;
+      if (!r || !r.dias || !r.dias[idx]) return;
+      const senha = localStorage.getItem("acesso_senha");
+      if (!senha) { document.getElementById("config-api").open = true; feedback("Digite a senha de acesso (no topo)."); return; }
+      const ctx = r._ctx || {};
+      const d = r.dias[idx];
+      const usados = r.dias
+        .filter((_, i) => i !== idx)
+        .flatMap(x => x.atividades.map(a => a.nome))
+        .join("; ");
+
+      let prompt = `Refaça APENAS o Dia ${d.dia} de um roteiro de viagem para ${ctx.destino || r.destino}.
+Interesses do viajante: ${ctx.listaInteresses || "interesses gerais de turismo"}
+${ctx.extra ? "Observações: " + ctx.extra : ""}
+${ctx.mes ? "Época: " + ctx.mes : ""}
+Ritmo: ${ctx.ritmo || "equilibrado"} · Orçamento: ${ctx.orcamento || "médio"}
+
+Crie uma NOVA versão desse dia, diferente da atual, com a mesma qualidade.
+- Organize o dia geograficamente (mesma região/bairro, deslocamento lógico) e preencha "regiao".
+- Distribua atividades entre manhã, tarde e noite, com locais reais e conhecidos.
+- NÃO repita estes locais já usados nos outros dias: ${usados || "(nenhum)"}.
+- Para cada atividade preencha "preco_estimado" (faixa na moeda local), "termo_foto" (nome p/ a Wikipédia) e "proximos" (2 a 3 sugestões pertinho — Café/Comida/Compras).${ctx.instrucaoUnicas || ""}${ctx.instrucaoForaDoObvio || ""}${ctx.instrucaoOrcAlvo || ""}
+- Responda inteiramente em português.`;
+      if (ctx.aoVivo) {
+        prompt += `\n\nResponda APENAS com um objeto JSON do dia, sem markdown, nesta estrutura:
+{"dia": ${d.dia}, "titulo": "texto", "regiao": "texto", "atividades": [{"periodo": "texto", "nome": "texto", "tipo": "texto", "descricao": "texto", "preco_estimado": "texto", "termo_foto": "texto", "proximos": [{"nome": "texto", "tipo": "Café", "nota": "texto"}]}]}`;
+      }
+
+      feedback("🔄 Refazendo o Dia " + d.dia + "... (pode levar alguns segundos)");
+      try {
+        const novo = await pedirIA({ prompt, schema: SCHEMA.properties.dias.items, aoVivo: ctx.aoVivo, senha });
+        novo.dia = d.dia;
+        r.dias[idx] = novo;
+        renderRoteiro(r);
+        document.getElementById("roteiro").scrollIntoView({ behavior: "smooth" });
+        feedback("✓ Dia " + d.dia + " atualizado!");
+      } catch (e) {
+        feedback(e.message || "Não foi possível refazer o dia.");
       }
     }
 
@@ -724,21 +914,25 @@ Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem tex
             <p>${escapar(r.resumo)}</p>
           </div>
         </div>
-        <div id="previsao" class="previsao"></div>`;
+        <div id="previsao" class="previsao"></div>
+        <div id="feriados"></div>`;
 
       const imgsParaBuscar = [];
 
-      r.dias.forEach(dia => {
+      r.dias.forEach((dia, diaIdx) => {
         const rotaUrl = "https://www.google.com/maps/dir/" +
           dia.atividades.map(a => encodeURIComponent(a.nome + ", " + r.destino)).join("/");
         html += `<div class="dia">
             <div class="dia-titulo">Dia ${dia.dia} — ${escapar(dia.titulo)}${dia.regiao ? ' · <span style="font-weight:400;opacity:.85">' + escapar(dia.regiao) + '</span>' : ''}</div>
-            <a class="map-link no-print" href="${rotaUrl}" target="_blank" rel="noopener" style="margin:0 0 12px;">🧭 Ver rota do dia no mapa</a>`;
-        dia.atividades.forEach(a => {
+            <a class="map-link no-print" href="${rotaUrl}" target="_blank" rel="noopener" style="margin:0 0 12px;">🧭 Ver rota do dia no mapa</a>
+            <button class="btn btn-ghost btn-small no-print" style="margin:0 0 12px 8px" onclick="regerarDia(${diaIdx})">🔄 Trocar este dia</button>`;
+        dia.atividades.forEach((a, actIdx) => {
           const imgId = "img-" + imgsParaBuscar.length;
           imgsParaBuscar.push({ id: imgId, termo: a.termo_foto });
           const mapsUrl = "https://www.google.com/maps/search/?api=1&query=" +
             encodeURIComponent(a.nome + ", " + r.destino);
+          const avaliacoesUrl = "https://www.google.com/search?q=" +
+            encodeURIComponent(a.nome + " " + r.destino + " avaliações");
 
           let proximosHtml = "";
           if (a.proximos && a.proximos.length) {
@@ -768,9 +962,13 @@ Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem tex
                 <h4>${escapar(a.nome)}</h4>
                 <p>${escapar(a.descricao)}</p>
                 <a class="map-link no-print" href="${mapsUrl}" target="_blank" rel="noopener">📍 Ver no mapa</a>
+                <a class="map-link no-print" href="${avaliacoesUrl}" target="_blank" rel="noopener">⭐ Avaliações</a>
                 ${proximosHtml}
               </div>
             </div>`;
+          if (actIdx < dia.atividades.length - 1) {
+            html += `<div class="trajeto" id="dist-${diaIdx}-${actIdx}"></div>`;
+          }
         });
         html += `</div>`;
       });
@@ -807,8 +1005,8 @@ Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem tex
       }
       document.getElementById("roteiro-conteudo").innerHTML = html;
 
-      // Busca as fotos de forma assíncrona (sem travar a tela)
-      imgsParaBuscar.forEach(item => buscarFoto(item.termo, item.id));
+      // Busca as fotos em fila (no máx. 4 ao mesmo tempo) para não sobrecarregar a Wikipédia
+      buscarFotosEmFila(imgsParaBuscar, 4);
 
       // Reaplica a conversão de moeda, se houver uma selecionada
       const alvoSel = document.getElementById("moeda-alvo");
@@ -817,8 +1015,14 @@ Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem tex
       // Busca a previsão do tempo (se houver data de início)
       buscarPrevisao(r);
 
+      // Verifica feriados no destino durante as datas da viagem
+      buscarFeriados(r);
+
       // Busca a foto de capa do destino
       buscarCapa(r.destino, "roteiro-capa");
+
+      // Calcula distância/tempo entre as atividades de cada dia (geocoding grátis)
+      calcularDistancias(r);
     }
 
     // Busca uma foto grande do destino para o banner (Wikipédia, grátis)
@@ -872,6 +1076,19 @@ Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem tex
       // Sem foto encontrada
       const el = document.getElementById(elementId);
       if (el) el.textContent = "sem foto";
+    }
+
+    // Busca várias fotos limitando quantas rodam ao mesmo tempo
+    async function buscarFotosEmFila(itens, max) {
+      let i = 0;
+      async function worker() {
+        while (i < itens.length) {
+          const it = itens[i++];
+          await buscarFoto(it.termo, it.id);
+        }
+      }
+      const n = Math.min(max || 4, itens.length);
+      await Promise.all(Array.from({ length: n }, worker));
     }
 
     // ===== Utilidades =====
@@ -954,97 +1171,171 @@ Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem tex
       return t;
     }
 
-    // Monta um PDF colorido e bonito a partir do roteiro
+    // Monta um PDF colorido e harmonioso a partir do roteiro
     function construirPdf() {
       const r = roteiroAtual;
       const doc = new window.jspdf.jsPDF({ unit: "pt", format: "a4" });
       const W = doc.internal.pageSize.getWidth();
       const H = doc.internal.pageSize.getHeight();
-      const m = 40;
-      const cw = W - m * 2;
+      const m = 44;                 // margem
+      const cw = W - m * 2;         // largura útil
+      const rodapeH = 30;
       let y = 0;
 
-      function novaPaginaSe(h) { if (y + h > H - m) { doc.addPage(); y = m; } }
+      // paleta da marca
+      const AZUL = [30, 96, 145], CIANO = [22, 138, 173], LARANJA = [239, 108, 0];
+      const TINTA = [26, 34, 56];
 
-      // Cabeçalho colorido (capa)
-      doc.setFillColor(30, 96, 145);
-      doc.rect(0, 0, W, 96, "F");
+      function novaPaginaSe(h) { if (y + h > H - m - rodapeH) { doc.addPage(); y = m; } }
+      function linhaSep() {
+        doc.setDrawColor(232, 236, 242); doc.setLineWidth(0.6);
+        doc.line(m, y, m + cw, y); y += 12;
+      }
+      // caixa colorida com título e linhas de texto (orçamento, dicas, etc.)
+      function caixa(fill, tinta, titulo, linhas) {
+        const corpo = [];
+        doc.setFont("helvetica", "normal"); doc.setFontSize(9.5);
+        linhas.forEach(t => doc.splitTextToSize(t, cw - 24).forEach(l => corpo.push(l)));
+        const boxH = 34 + corpo.length * 12 + 6;
+        novaPaginaSe(boxH);
+        doc.setFillColor(fill[0], fill[1], fill[2]);
+        doc.roundedRect(m, y, cw, boxH, 7, 7, "F");
+        doc.setTextColor(tinta[0], tinta[1], tinta[2]);
+        doc.setFont("helvetica", "bold"); doc.setFontSize(10.5);
+        doc.text(titulo, m + 12, y + 20);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(9.5);
+        let yy = y + 34;
+        corpo.forEach(l => { doc.text(l, m + 12, yy); yy += 12; });
+        y += boxH + 12;
+      }
+
+      // ---- Capa ----
+      doc.setFillColor.apply(doc, AZUL); doc.rect(0, 0, W, 120, "F");
+      doc.setFillColor.apply(doc, CIANO); doc.rect(0, 108, W, 8, "F");
+      doc.setFillColor.apply(doc, LARANJA); doc.rect(0, 116, W, 4, "F");
       doc.setTextColor(255, 255, 255);
-      doc.setFont("helvetica", "bold"); doc.setFontSize(20);
-      doc.text(doc.splitTextToSize(r.destino || "Roteiro de viagem", cw), m, 38);
-      doc.setFont("helvetica", "normal"); doc.setFontSize(10);
-      if (r.resumo) doc.text(doc.splitTextToSize(r.resumo, cw).slice(0, 3), m, 62);
-      y = 116;
+      doc.setFont("helvetica", "bold"); doc.setFontSize(22);
+      doc.text(doc.splitTextToSize(r.destino || "Roteiro de viagem", cw), m, 46);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(10.5);
+      const nDias = (r.dias && r.dias.length) || 0;
+      const nViaj = r.viajantes || 1;
+      doc.text("Roteiro de " + nDias + (nDias === 1 ? " dia" : " dias") +
+        "   |   " + nViaj + (nViaj === 1 ? " viajante" : " viajantes"), m, 66);
+      if (r.resumo) {
+        doc.setFontSize(9.5);
+        doc.text(doc.splitTextToSize(r.resumo, cw).slice(0, 3), m, 84);
+      }
+      y = 150;
 
+      // ---- Dias ----
       r.dias.forEach(d => {
-        novaPaginaSe(44);
-        // Faixa colorida do dia
-        doc.setFillColor(22, 138, 173);
-        doc.roundedRect(m, y, cw, 26, 5, 5, "F");
-        doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(12);
-        doc.text("Dia " + d.dia + "  -  " + d.titulo + (d.regiao ? "  (" + d.regiao + ")" : ""), m + 10, y + 17, { maxWidth: cw - 20 });
-        y += 40;
+        novaPaginaSe(50);
+        doc.setFillColor.apply(doc, CIANO);
+        doc.roundedRect(m, y, cw, 28, 6, 6, "F");
+        doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(12.5);
+        doc.text("Dia " + d.dia + "  -  " + (d.titulo || "") + (d.regiao ? "   |   " + d.regiao : ""),
+          m + 12, y + 18, { maxWidth: cw - 24 });
+        y += 42;
 
-        d.atividades.forEach(a => {
-          novaPaginaSe(64);
-          // Nome da atividade
-          doc.setTextColor(26, 34, 56); doc.setFont("helvetica", "bold"); doc.setFontSize(11);
-          doc.splitTextToSize(a.nome, cw).forEach(l => { doc.text(l, m, y); y += 15; });
+        (d.atividades || []).forEach((a, idxA) => {
+          novaPaginaSe(70);
+          if (idxA > 0) linhaSep();
 
-          // Tags coloridas: período / tipo / preço
+          // nome da atividade
+          doc.setTextColor.apply(doc, TINTA); doc.setFont("helvetica", "bold"); doc.setFontSize(11.5);
+          doc.splitTextToSize(a.nome || "", cw).forEach(l => { novaPaginaSe(15); doc.text(l, m, y); y += 15; });
+          y += 2;
+
+          // chips: período / tipo / preço
           let x = m;
-          const tags = [
+          const chips = [
             { t: a.periodo, fill: [227, 242, 253], color: [21, 101, 192] },
             { t: a.tipo, fill: [255, 243, 224], color: [230, 81, 0] },
             { t: a.preco_estimado, fill: [232, 245, 233], color: [46, 125, 50] }
           ];
           doc.setFont("helvetica", "bold"); doc.setFontSize(8);
-          tags.forEach(tag => {
-            if (!tag.t) return;
-            const tw = doc.getTextWidth(tag.t) + 12;
-            if (x + tw > m + cw) { x = m; y += 16; }
-            doc.setFillColor(tag.fill[0], tag.fill[1], tag.fill[2]);
-            doc.roundedRect(x, y - 9, tw, 13, 3, 3, "F");
-            doc.setTextColor(tag.color[0], tag.color[1], tag.color[2]);
-            doc.text(tag.t, x + 6, y);
+          chips.forEach(c => {
+            if (!c.t) return;
+            const tw = doc.getTextWidth(c.t) + 14;
+            if (x + tw > m + cw) { x = m; y += 18; }
+            doc.setFillColor(c.fill[0], c.fill[1], c.fill[2]);
+            doc.roundedRect(x, y - 9, tw, 14, 7, 7, "F");
+            doc.setTextColor(c.color[0], c.color[1], c.color[2]);
+            doc.text(c.t, x + 7, y + 0.5);
             x += tw + 6;
           });
-          y += 16;
+          y += 18;
 
-          // Descrição
+          // descrição
           if (a.descricao) {
             doc.setTextColor(52, 73, 94); doc.setFont("helvetica", "normal"); doc.setFontSize(9.5);
-            doc.splitTextToSize(a.descricao, cw).forEach(l => { novaPaginaSe(12); doc.text(l, m, y); y += 12; });
+            doc.splitTextToSize(a.descricao, cw).forEach(l => { novaPaginaSe(13); doc.text(l, m, y); y += 13; });
           }
 
-          // Perto daqui
+          // perto daqui
           if (a.proximos && a.proximos.length) {
-            novaPaginaSe(13);
+            y += 2; novaPaginaSe(14);
             doc.setTextColor(46, 125, 50); doc.setFont("helvetica", "bold"); doc.setFontSize(8.5);
-            doc.text("Perto daqui:", m, y); y += 12;
-            doc.setFont("helvetica", "normal"); doc.setTextColor(60, 72, 80);
+            doc.text("Perto daqui", m, y); y += 12;
+            doc.setFont("helvetica", "normal"); doc.setTextColor(60, 72, 80); doc.setFontSize(9);
             a.proximos.forEach(p => {
-              doc.splitTextToSize("- " + p.nome + " (" + p.tipo + ") - " + p.nota, cw - 10)
-                .forEach(l => { novaPaginaSe(11); doc.text(l, m + 8, y); y += 11; });
+              const txt = "- " + p.nome + (p.tipo ? " (" + p.tipo + ")" : "") + (p.nota ? " - " + p.nota : "");
+              doc.splitTextToSize(txt, cw - 12).forEach(l => { novaPaginaSe(12); doc.text(l, m + 10, y); y += 12; });
             });
           }
-          y += 12;
+          y += 10;
         });
-        y += 6;
+        y += 8;
       });
 
-      // Caixa verde com a dica de orçamento
-      if (r.dica_orcamento) {
-        doc.setFont("helvetica", "normal"); doc.setFontSize(10);
-        const linhas = doc.splitTextToSize("Dica de orcamento: " + r.dica_orcamento, cw - 20);
-        const boxH = linhas.length * 12 + 18;
-        novaPaginaSe(boxH);
-        doc.setFillColor(232, 245, 233); doc.roundedRect(m, y, cw, boxH, 6, 6, "F");
-        doc.setTextColor(27, 94, 32);
-        let yy = y + 16; linhas.forEach(l => { doc.text(l, m + 10, yy); yy += 12; });
-        y += boxH;
+      // ---- Orçamento estimado ----
+      const orc = calcularOrcamento(r);
+      if (orc) {
+        const N = r.viajantes || 1;
+        const fmt = v => orc.moeda + " " + Math.round(v).toLocaleString("pt-BR");
+        caixa([232, 245, 233], [27, 94, 32], "Orcamento estimado da viagem", [
+          "Por pessoa: " + fmt(orc.porPessoa) + "      Total (" + N + (N > 1 ? " viajantes" : " viajante") + "): " + fmt(orc.porPessoa * N),
+          "Soma estimada das atividades; nao inclui hospedagem e passagens."
+        ]);
+      }
+
+      // ---- Dica de orçamento ----
+      if (r.dica_orcamento) caixa([232, 245, 233], [27, 94, 32], "Dica de orcamento", [r.dica_orcamento]);
+
+      // ---- Dicas locais ----
+      if (r.dicas_locais) {
+        const d = r.dicas_locais, itens = [];
+        const add = (rot, v) => { if (v) itens.push(rot + ": " + v); };
+        add("Moeda e pagamento", d.moeda); add("Gorjeta", d.gorjeta); add("Tomada/voltagem", d.tomada);
+        add("Emergencia", d.emergencia); add("Idioma", d.idioma);
+        add("Do aeroporto ao centro", d.transporte_aeroporto); add("Seguranca", d.seguranca);
+        if (itens.length) caixa([238, 246, 255], [21, 60, 100], "Dicas locais - bom saber antes de ir", itens);
+      }
+
+      // ---- Rodapé com número de página em todas as páginas ----
+      const total = doc.getNumberOfPages();
+      for (let p = 1; p <= total; p++) {
+        doc.setPage(p);
+        doc.setDrawColor(232, 236, 242); doc.setLineWidth(0.6);
+        doc.line(m, H - rodapeH, m + cw, H - rodapeH);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(150, 160, 172);
+        doc.text("Gerador de Roteiro de Viagem", m, H - rodapeH + 14);
+        doc.text("Pagina " + p + " de " + total, m + cw, H - rodapeH + 14, { align: "right" });
       }
       return doc;
+    }
+
+    // Baixa o PDF bonito (botão ⬇️ PDF)
+    function baixarPdf() {
+      if (!roteiroAtual) return;
+      if (!window.jspdf) { feedback("Aguarde o carregamento e tente de novo."); return; }
+      try {
+        const nome = "roteiro-" + (roteiroAtual.destino || "viagem").replace(/[^\w]+/g, "-").toLowerCase() + ".pdf";
+        construirPdf().save(nome);
+        feedback("✓ PDF gerado!");
+      } catch (e) {
+        feedback("Não foi possível gerar o PDF.");
+      }
     }
 
     async function compartilharWhatsApp() {
@@ -1221,6 +1512,27 @@ Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem tex
       if ([95, 96, 99].includes(code)) return ["⛈️", "Tempestade"];
       return ["🌡️", ""];
     }
+    // Monta a lista "o que levar na mala" a partir da previsão do tempo
+    function montarMala(daily) {
+      const maxT = Math.max.apply(null, daily.temperature_2m_max);
+      const minT = Math.min.apply(null, daily.temperature_2m_min);
+      const chuva = Math.max.apply(null, (daily.precipitation_probability_max || [0]).map(v => v == null ? 0 : v));
+      const codes = daily.weather_code || [];
+      const temNeve = codes.some(c => [71, 73, 75, 77, 85, 86].includes(c));
+      const temTempestade = codes.some(c => [95, 96, 99].includes(c));
+      const itens = [];
+      const add = (e, t) => itens.push(e + " " + t);
+      if (maxT >= 27) { add("👕", "Roupas leves"); add("🧴", "Protetor solar"); add("🕶️", "Óculos de sol"); add("💧", "Garrafa de água"); }
+      if (maxT >= 30) add("🧢", "Boné ou chapéu");
+      if (minT <= 14) add("🧥", "Casaco ou blusa de frio");
+      if (minT <= 6) add("🧣", "Touca, cachecol e luvas");
+      if (minT <= 0) add("🥶", "Roupa térmica");
+      if (maxT - minT >= 12) add("🧦", "Roupas em camadas (a temperatura varia muito)");
+      if (chuva >= 40 || temTempestade) { add("☔", "Guarda-chuva ou capa de chuva"); add("👟", "Calçado impermeável"); }
+      if (temNeve) add("❄️", "Roupa de neve e botas");
+      add("👟", "Calçado confortável pra caminhar");
+      return [...new Set(itens)];
+    }
     async function buscarPrevisao(r) {
       const el = document.getElementById("previsao");
       if (!el) return;
@@ -1254,9 +1566,110 @@ Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem tex
           const dataBr = dia.split("-").reverse().slice(0, 2).join("/");
           cards += `<div class="clima-card"><div class="clima-data">${dataBr}</div><div class="clima-ic">${ic}</div><div class="clima-temp">${max}° / ${min}°</div><div class="clima-chuva">💧 ${chuva == null ? 0 : chuva}%</div></div>`;
         });
-        el.innerHTML = `<div class="previsao-titulo">🌤️ Previsão do tempo para as datas</div><div class="clima-grid">${cards}</div>`;
+        const mala = montarMala(fj.daily);
+        const malaHtml = mala.length
+          ? `<div class="mala"><div class="mala-titulo">🧳 O que levar na mala</div><div class="mala-itens">` +
+            mala.map(i => `<span class="mala-item">${i}</span>`).join("") + `</div></div>`
+          : "";
+        el.innerHTML = `<div class="previsao-titulo">🌤️ Previsão do tempo para as datas</div><div class="clima-grid">${cards}</div>` + malaHtml;
       } catch (e) { el.innerHTML = ""; }
     }
+
+    // ===== Feriados durante a viagem (Nager.Date, gratuito, sem chave) =====
+    async function buscarFeriados(r) {
+      const el = document.getElementById("feriados");
+      if (!el) return;
+      el.innerHTML = "";
+      if (!r.dataInicio) return;
+      const inicio = new Date(r.dataInicio + "T00:00:00");
+      const numDias = (r.dias && r.dias.length) ? r.dias.length : 1;
+      const fim = new Date(inicio); fim.setDate(fim.getDate() + numDias - 1);
+      try {
+        // descobre o país do destino (código ISO de 2 letras) pelo geocoding
+        const g = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(r.destino)}&count=1&language=pt`);
+        const gj = await g.json();
+        const cc = gj.results && gj.results[0] && gj.results[0].country_code;
+        if (!cc) return;
+        // feriados podem cair em anos diferentes (viagem virando o ano)
+        const anos = [...new Set([inicio.getFullYear(), fim.getFullYear()])];
+        let feriados = [];
+        for (const ano of anos) {
+          const resp = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${ano}/${cc}`);
+          if (!resp.ok) continue;
+          const arr = await resp.json();
+          if (Array.isArray(arr)) feriados = feriados.concat(arr);
+        }
+        const naData = feriados.filter(f => {
+          const d = new Date(f.date + "T00:00:00");
+          return d >= inicio && d <= fim;
+        });
+        if (!naData.length) return; // nenhum feriado nas datas: não mostra nada
+        const itens = naData.map(f => {
+          const dataBr = f.date.split("-").reverse().slice(0, 2).join("/");
+          const nome = f.localName + (f.name && f.name !== f.localName ? " (" + f.name + ")" : "");
+          return `<div class="feriado-item">🎉 <strong>${escapar(dataBr)}</strong> — ${escapar(nome)}</div>`;
+        }).join("");
+        el.innerHTML = `<div class="feriados">
+            <div class="feriados-titulo">📅 Feriados durante a viagem</div>
+            ${itens}
+            <div class="muted">Em feriados, muitas atrações fecham ou lotam e o comércio pode ter horário reduzido — vale confirmar os horários antes.</div>
+          </div>`;
+      } catch (e) { el.innerHTML = ""; }
+    }
+
+    // ===== Distância e tempo entre os pontos (Photon, grátis, sem chave) =====
+    const cacheGeo = {};
+    async function geocodeLocal(q) {
+      if (cacheGeo[q] !== undefined) return cacheGeo[q];
+      try {
+        const r = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=1`);
+        const j = await r.json();
+        const f = j.features && j.features[0];
+        cacheGeo[q] = (f && f.geometry && f.geometry.coordinates)
+          ? { lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0] } : null;
+      } catch (e) { cacheGeo[q] = null; }
+      return cacheGeo[q];
+    }
+    function distanciaKm(a, b) {
+      const R = 6371, toRad = g => g * Math.PI / 180;
+      const dLat = toRad(b.lat - a.lat), dLon = toRad(b.lon - a.lon);
+      const s = Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLon / 2) ** 2;
+      return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
+    }
+    function textoTrajeto(km) {
+      if (km < 0.06) return "↓ pertinho, praticamente no mesmo ponto";
+      const dist = km < 1 ? Math.round(km * 1000) + " m" : km.toFixed(1).replace(".", ",") + " km";
+      if (km <= 2) return `↓ ~${dist} · ~${Math.max(1, Math.round(km / 5 * 60))} min a pé 🚶`;
+      return `↓ ~${dist} · ~${Math.max(5, Math.round(km / 25 * 60))} min de carro/transporte 🚗`;
+    }
+    async function calcularDistancias(r) {
+      for (let di = 0; di < r.dias.length; di++) {
+        const ats = r.dias[di].atividades || [];
+        const pts = [];
+        for (const a of ats) pts.push(await geocodeLocal(a.nome + ", " + r.destino));
+        for (let i = 0; i < ats.length - 1; i++) {
+          const el = document.getElementById(`dist-${di}-${i}`);
+          if (!el) continue;
+          const A = pts[i], B = pts[i + 1];
+          if (!A || !B) continue; // sem coordenadas confiáveis: deixa em branco
+          el.innerHTML = `<span class="trajeto-linha">${textoTrajeto(distanciaKm(A, B))}</span>`;
+        }
+      }
+    }
+
+    // ===== Modo escuro =====
+    function aplicarTema(escuro) {
+      document.body.classList.toggle("dark", escuro);
+      const b = document.getElementById("btn-tema");
+      if (b) b.textContent = escuro ? "☀️" : "🌙";
+    }
+    function alternarTema() {
+      const escuro = !document.body.classList.contains("dark");
+      localStorage.setItem("tema_escuro", escuro ? "1" : "0");
+      aplicarTema(escuro);
+    }
+    aplicarTema(localStorage.getItem("tema_escuro") === "1");
 
     // Mostra o botão "WhatsApp (PDF)" só onde dá para compartilhar arquivo (celular)
     (function () {
