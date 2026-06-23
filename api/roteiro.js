@@ -5,6 +5,22 @@
 //   GEMINI_KEY       -> sua chave da API do Google Gemini
 //   ACCESS_PASSWORD  -> a senha de acesso que você define
 
+// Coleta todas as chaves do Gemini configuradas (para rotação):
+//   GEMINI_KEY, GEMINI_KEY_2, GEMINI_KEY_3 ... (até 8) e/ou
+//   GEMINI_KEYS = "chave1,chave2,chave3" (separadas por vírgula)
+function coletarChaves() {
+  const keys = [];
+  if (process.env.GEMINI_KEY) keys.push(process.env.GEMINI_KEY.trim());
+  for (let i = 2; i <= 8; i++) {
+    const k = process.env["GEMINI_KEY_" + i];
+    if (k) keys.push(k.trim());
+  }
+  if (process.env.GEMINI_KEYS) {
+    process.env.GEMINI_KEYS.split(",").map(s => s.trim()).filter(Boolean).forEach(k => keys.push(k));
+  }
+  return [...new Set(keys.filter(Boolean))];
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Método não permitido." });
@@ -24,8 +40,8 @@ export default async function handler(req, res) {
   if (!prompt) {
     return res.status(400).json({ error: "Faltou o pedido (prompt)." });
   }
-  const key = process.env.GEMINI_KEY;
-  if (!key) {
+  const keys = coletarChaves();
+  if (!keys.length) {
     return res.status(500).json({ error: "Servidor sem chave da IA configurada (GEMINI_KEY)." });
   }
 
@@ -41,27 +57,43 @@ export default async function handler(req, res) {
     corpo.generationConfig.responseMimeType = "application/json";
     corpo.generationConfig.responseSchema = schema;
   }
+  const bodyStr = JSON.stringify(corpo);
 
-  // 4) Chama a IA e devolve só o texto gerado
-  try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${encodeURIComponent(key)}`;
-    const r = await fetch(url, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(corpo)
-    });
-    const j = await r.json();
-    if (!r.ok) {
-      const detalhe = (j && j.error && j.error.message) || JSON.stringify(j);
-      return res.status(r.status).json({ error: detalhe });
+  // 4) Tenta cada chave; se uma estiver no limite (429), passa para a próxima.
+  //    Começa em um ponto aleatório para distribuir a carga entre as chaves.
+  const inicio = Math.floor(Math.random() * keys.length);
+  let ultimoLimite = null;
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[(inicio + i) % keys.length];
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${encodeURIComponent(key)}`;
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: bodyStr
+      });
+      const j = await r.json();
+      if (r.status === 429) {
+        // chave no limite -> guarda e tenta a próxima
+        ultimoLimite = (j && j.error && j.error.message) || "Limite atingido.";
+        continue;
+      }
+      if (!r.ok) {
+        const detalhe = (j && j.error && j.error.message) || JSON.stringify(j);
+        return res.status(r.status).json({ error: detalhe });
+      }
+      const cand = j.candidates && j.candidates[0];
+      let texto = "";
+      if (cand && cand.content && cand.content.parts) {
+        texto = cand.content.parts.map(p => p.text || "").join("");
+      }
+      return res.status(200).json({ text: texto });
+    } catch (e) {
+      ultimoLimite = "Falha ao contatar a IA: " + (e.message || e);
+      // erro nessa chave -> tenta a próxima também
     }
-    const cand = j.candidates && j.candidates[0];
-    let texto = "";
-    if (cand && cand.content && cand.content.parts) {
-      texto = cand.content.parts.map(p => p.text || "").join("");
-    }
-    return res.status(200).json({ text: texto });
-  } catch (e) {
-    return res.status(500).json({ error: "Falha ao contatar a IA: " + (e.message || e) });
   }
+
+  // Todas as chaves atingiram o limite ou falharam
+  return res.status(429).json({ error: ultimoLimite || "Todas as chaves atingiram o limite. Tente novamente em 1 minuto." });
 }
