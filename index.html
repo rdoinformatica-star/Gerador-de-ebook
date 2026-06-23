@@ -151,6 +151,28 @@
     .roteiro-cabecalho h2 { font-size: 26px; margin: 0 0 8px; color: #1a2238; }
     .roteiro-cabecalho p { font-size: 15px; color: #45586b; max-width: 700px; margin: 0 auto; }
 
+    .roteiro-capa {
+      position: relative;
+      border-radius: 14px;
+      overflow: hidden;
+      min-height: 200px;
+      background: linear-gradient(135deg, #1e6091, #168aad);
+      background-size: cover;
+      background-position: center;
+      display: flex;
+      align-items: flex-end;
+      margin-bottom: 16px;
+      transition: background-image .3s;
+    }
+    .capa-overlay {
+      width: 100%;
+      background: linear-gradient(to top, rgba(0,0,0,.7), rgba(0,0,0,.15) 60%, rgba(0,0,0,0));
+      color: #fff;
+      padding: 44px 22px 18px;
+    }
+    .capa-overlay h2 { margin: 0 0 6px; font-size: 26px; text-shadow: 0 2px 8px rgba(0,0,0,.5); }
+    .capa-overlay p { margin: 0; font-size: 14px; opacity: .96; text-shadow: 0 1px 5px rgba(0,0,0,.5); max-width: 720px; }
+
     .dia { margin-bottom: 28px; }
     .dia-titulo {
       font-size: 18px;
@@ -696,9 +718,11 @@ Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem tex
 
     // ===== Renderizar o roteiro =====
     function renderRoteiro(r) {
-      let html = `<div class="roteiro-cabecalho">
-          <h2>📍 ${escapar(r.destino)}</h2>
-          <p>${escapar(r.resumo)}</p>
+      let html = `<div class="roteiro-capa" id="roteiro-capa">
+          <div class="capa-overlay">
+            <h2>📍 ${escapar(r.destino)}</h2>
+            <p>${escapar(r.resumo)}</p>
+          </div>
         </div>
         <div id="previsao" class="previsao"></div>`;
 
@@ -792,6 +816,32 @@ Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem tex
 
       // Busca a previsão do tempo (se houver data de início)
       buscarPrevisao(r);
+
+      // Busca a foto de capa do destino
+      buscarCapa(r.destino, "roteiro-capa");
+    }
+
+    // Busca uma foto grande do destino para o banner (Wikipédia, grátis)
+    async function buscarCapa(termo, elId) {
+      const el = document.getElementById(elId);
+      if (!el) return;
+      for (const lang of ["pt", "en"]) {
+        try {
+          const url = `https://${lang}.wikipedia.org/w/api.php?action=query&format=json` +
+            `&prop=pageimages&piprop=thumbnail&pithumbsize=1000` +
+            `&generator=search&gsrsearch=${encodeURIComponent(termo)}&gsrlimit=1&origin=*`;
+          const r = await fetch(url);
+          const j = await r.json();
+          const pages = j && j.query && j.query.pages;
+          if (pages) {
+            const page = Object.values(pages)[0];
+            if (page && page.thumbnail && page.thumbnail.source) {
+              el.style.backgroundImage = `url("${page.thumbnail.source}")`;
+              return;
+            }
+          }
+        } catch (e) { /* tenta o próximo idioma */ }
+      }
     }
 
     // ===== Buscar foto na Wikipédia (grátis, sem chave) =====
