@@ -383,6 +383,30 @@
     .dica-ic { font-size: 18px; flex-shrink: 0; }
     .saude-docs { background: color-mix(in srgb, var(--emerald) 9%, var(--surface)); border: 1px solid color-mix(in srgb, var(--emerald) 24%, transparent); border-radius: var(--r); padding: 18px; margin-top: 15px; }
 
+    /* Melhor época */
+    .epoca-card { display: flex; gap: 13px; align-items: flex-start; background: color-mix(in srgb, var(--gold) 9%, var(--surface)); border: 1px solid var(--line-gold); border-radius: var(--r); padding: 15px 17px; margin-bottom: 14px; }
+    .epoca-ic { font-size: 22px; flex-shrink: 0; }
+    .epoca-titulo { font-weight: 800; color: var(--gold-ink); font-size: 13px; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 3px; }
+    .epoca-txt { font-size: 14.5px; color: var(--text); line-height: 1.6; }
+
+    /* Custo total da viagem (R$) */
+    .custo-card { background: var(--surface-2); border: 1px solid var(--line); border-left: 3px solid var(--gold); border-radius: var(--r); padding: 16px 18px; margin-bottom: 18px; }
+    .custo-titulo { font-family: var(--font-display); font-size: 18px; color: var(--text); margin-bottom: 12px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .custo-badge { font-family: var(--font-sans); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; color: var(--text-3); background: var(--glass); border: 1px solid var(--glass-border); border-radius: var(--r-pill); padding: 3px 10px; }
+    .custo-linha { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 14.5px; color: var(--text-2); }
+    .custo-linha:first-of-type { border-top: none; }
+    .custo-linha strong { color: var(--text); font-weight: 700; white-space: nowrap; }
+    .custo-total-linha { border-top: 2px solid var(--line-gold); margin-top: 4px; padding-top: 12px; font-size: 16px; color: var(--text); }
+    .custo-total-linha strong { color: var(--gold-ink); font-size: 17px; }
+
+    /* CTA Rafa Milhas (lead) */
+    .cta-rafa { margin-top: 22px; background: linear-gradient(135deg, color-mix(in srgb, var(--gold) 16%, var(--surface)), var(--surface-2)); border: 1px solid var(--line-gold); border-radius: var(--r-lg); padding: 22px 24px; display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; box-shadow: var(--shadow-card); }
+    .cta-rafa-titulo { font-family: var(--font-display); font-size: 20px; color: var(--text); margin-bottom: 5px; }
+    .cta-rafa-sub { font-size: 14px; color: var(--text-2); line-height: 1.55; max-width: 60ch; }
+    .cta-rafa-sub strong { color: var(--text); }
+    .cta-rafa-btn { width: auto; margin: 0; flex-shrink: 0; white-space: nowrap; }
+    @media (max-width: 600px) { .cta-rafa-btn { width: 100%; } }
+
     .previsao { margin: 6px 0 20px; }
     .previsao-titulo { font-weight: 700; color: var(--text); margin-bottom: 9px; font-size: 15px; }
     .previsao-aviso { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r); padding: 11px 13px; font-size: 13px; color: var(--text-2); }
@@ -798,6 +822,18 @@
             saude: { type: "STRING" }
           },
           required: ["visto", "passaporte", "vacinas", "seguro", "saude"]
+        },
+        melhor_epoca: { type: "STRING" },
+        custo_total: {
+          type: "OBJECT",
+          properties: {
+            passagem: { type: "STRING" },
+            hospedagem: { type: "STRING" },
+            passeios_alimentacao: { type: "STRING" },
+            total: { type: "STRING" },
+            observacao: { type: "STRING" }
+          },
+          required: ["passagem", "hospedagem", "passeios_alimentacao", "total", "observacao"]
         }
       },
       required: ["destino", "resumo", "dias", "dica_orcamento", "dicas_locais", "saude_documentos"]
@@ -989,6 +1025,8 @@ Instruções:
 - Em "proximos", liste de 2 a 3 sugestões IMPERDÍVEIS que ficam BEM PERTO daquele local (a poucos minutos a pé): cafés especiais, comidas/restaurantes típicos e lojas/compras imperdíveis. Para cada uma: "nome" (nome real do estabelecimento ou lugar), "tipo" ("Café", "Comida" ou "Compras") e "nota" (uma frase curta dizendo por que vale a pena). Devem ser locais reais e próximos da atividade, não genéricos.
 - Preencha "dicas_locais" com informações práticas e reais do destino: moeda local e formas de pagamento aceitas, costume de gorjeta, tipo de tomada e voltagem, telefones de emergência locais, 3 a 5 frases básicas úteis no idioma local (com a tradução em português), como ir do aeroporto até o centro, e uma dica de segurança.
 - Preencha "saude_documentos" considerando um viajante com PASSAPORTE BRASILEIRO indo a este destino: em "visto", se brasileiros precisam de visto ou de autorização eletrônica (ex.: ETIAS, eTA, ESTA), e por quanto tempo pode ficar sem visto; em "passaporte", validade mínima exigida do passaporte e necessidade de comprovantes (passagem de volta, hospedagem); em "vacinas", vacinas exigidas ou recomendadas (ex.: febre amarela e o Certificado Internacional, se for o caso); em "seguro", se o seguro-viagem é obrigatório ou recomendado (ex.: Tratado de Schengen exige); em "saude", dicas de saúde no destino (água é potável?, farmácias, mosquitos/altitude, etc.). Seja específico para o país. Encerre cada campo, quando aplicável, lembrando de confirmar em fontes oficiais antes de viajar, pois as regras mudam.
+- Em "melhor_epoca", diga em 1 a 2 frases os 1 a 3 MELHORES meses para visitar este destino, considerando ao mesmo tempo clima agradável E preços mais em conta (fora da alta temporada); se a época da viagem já foi informada, comente se ela é uma boa escolha.
+- Preencha "custo_total" com uma estimativa realista do custo da viagem POR PESSOA, EM REAIS (R$), para um viajante saindo do BRASIL: "passagem" (faixa de ida e volta em R$), "hospedagem" (faixa em R$ para toda a estadia de ${dias} dias, categoria compatível com o perfil de orçamento), "passeios_alimentacao" (faixa em R$ para todo o período), "total" (faixa em R$ somando os três) e "observacao" (1 frase curta lembrando que são estimativas que variam com antecedência e época). Formate os valores como "R$ 4.000 – 6.000".
 - Responda inteiramente em português.`;
 
       let promptFinal = prompt;
@@ -998,7 +1036,7 @@ Instruções:
 Use a busca na web para trazer informações ATUAIS (preços recentes, novidades e eventos do período da viagem).
 
 Responda APENAS com um objeto JSON válido — sem crases, sem markdown, sem texto antes ou depois — exatamente nesta estrutura:
-{"destino": "texto", "resumo": "texto", "dias": [{"dia": 1, "titulo": "texto", "regiao": "texto", "atividades": [{"periodo": "texto", "nome": "texto", "tipo": "texto", "descricao": "texto", "preco_estimado": "texto", "termo_foto": "texto", "proximos": [{"nome": "texto", "tipo": "Café", "nota": "texto"}]}]}], "dica_orcamento": "texto", "dicas_locais": {"moeda": "texto", "gorjeta": "texto", "tomada": "texto", "emergencia": "texto", "idioma": "texto", "transporte_aeroporto": "texto", "seguranca": "texto"}, "saude_documentos": {"visto": "texto", "passaporte": "texto", "vacinas": "texto", "seguro": "texto", "saude": "texto"}}`;
+{"destino": "texto", "resumo": "texto", "dias": [{"dia": 1, "titulo": "texto", "regiao": "texto", "atividades": [{"periodo": "texto", "nome": "texto", "tipo": "texto", "descricao": "texto", "preco_estimado": "texto", "termo_foto": "texto", "proximos": [{"nome": "texto", "tipo": "Café", "nota": "texto"}]}]}], "dica_orcamento": "texto", "dicas_locais": {"moeda": "texto", "gorjeta": "texto", "tomada": "texto", "emergencia": "texto", "idioma": "texto", "transporte_aeroporto": "texto", "seguranca": "texto"}, "saude_documentos": {"visto": "texto", "passaporte": "texto", "vacinas": "texto", "seguro": "texto", "saude": "texto"}, "melhor_epoca": "texto", "custo_total": {"passagem": "R$ 0 – 0", "hospedagem": "R$ 0 – 0", "passeios_alimentacao": "R$ 0 – 0", "total": "R$ 0 – 0", "observacao": "texto"}}`;
       }
 
       mostrar("loading");
@@ -1075,8 +1113,26 @@ Crie uma NOVA versão desse dia, diferente da atual, com a mesma qualidade.
             <h2>📍 ${escapar(r.destino)}</h2>
             <p>${escapar(r.resumo)}</p>
           </div>
-        </div>
-        <div id="previsao" class="previsao"></div>
+        </div>`;
+
+      // ===== Melhor época + custo total (visão geral em R$) =====
+      if (r.melhor_epoca) {
+        html += `<div class="epoca-card"><span class="epoca-ic">🗓️</span><div><div class="epoca-titulo">Melhor época pra ir</div><div class="epoca-txt">${escapar(r.melhor_epoca)}</div></div></div>`;
+      }
+      if (r.custo_total) {
+        const c = r.custo_total;
+        const linhaC = (ic, rot, v) => v ? `<div class="custo-linha"><span>${ic} ${rot}</span><strong>${escapar(v)}</strong></div>` : "";
+        html += `<div class="custo-card">
+            <div class="custo-titulo">💰 Quanto custa essa viagem <span class="custo-badge">estimativa por pessoa · saindo do Brasil</span></div>
+            ${linhaC("✈️", "Passagem (ida e volta)", c.passagem)}
+            ${linhaC("🏨", "Hospedagem (estadia toda)", c.hospedagem)}
+            ${linhaC("🍽️", "Passeios e alimentação", c.passeios_alimentacao)}
+            ${c.total ? `<div class="custo-linha custo-total-linha"><span>🧮 Total estimado</span><strong>${escapar(c.total)}</strong></div>` : ""}
+            ${c.observacao ? `<div class="muted" style="margin-top:8px">${escapar(c.observacao)}</div>` : ""}
+          </div>`;
+      }
+
+      html += `<div id="previsao" class="previsao"></div>
         <div id="feriados"></div>`;
 
       const imgsParaBuscar = [];
@@ -1181,6 +1237,16 @@ Crie uma NOVA versão desse dia, diferente da atual, com a mesma qualidade.
             <div class="muted">⚠️ Informações geradas por IA e podem estar desatualizadas. Confirme sempre nos canais oficiais (consulado/embaixada do destino) antes de viajar.</div>
           </div>`;
       }
+
+      // ===== CTA Rafa Milhas (captura de lead) =====
+      html += `<div class="cta-rafa no-print">
+          <div class="cta-rafa-txt">
+            <div class="cta-rafa-titulo">✈️ Realize essa viagem gastando muito menos</div>
+            <div class="cta-rafa-sub">Emita as passagens para <strong>${escapar(r.destino)}</strong> com milhas e economize. Receba este roteiro e fale com um especialista Rafa Milhas.</div>
+          </div>
+          <button class="btn btn-primary cta-rafa-btn" onclick="enviarWhatsAppRafa()">📲 Receber no WhatsApp</button>
+        </div>`;
+
       document.getElementById("roteiro-conteudo").innerHTML = html;
 
       // Busca as fotos em fila (no máx. 4 ao mesmo tempo) para não sobrecarregar a Wikipédia
@@ -1495,6 +1561,19 @@ Crie uma NOVA versão desse dia, diferente da atual, com a mesma qualidade.
         y = 150;
       }
 
+      // ---- Melhor época + custo total (visão geral em R$) ----
+      const OURO = [250, 243, 224], OURO_TINTA = [150, 110, 10];
+      if (r.melhor_epoca) caixa(OURO, OURO_TINTA, "Melhor epoca para ir", [r.melhor_epoca]);
+      if (r.custo_total) {
+        const c = r.custo_total, itensC = [];
+        if (c.passagem) itensC.push("Passagem (ida e volta): " + c.passagem);
+        if (c.hospedagem) itensC.push("Hospedagem (estadia toda): " + c.hospedagem);
+        if (c.passeios_alimentacao) itensC.push("Passeios e alimentacao: " + c.passeios_alimentacao);
+        if (c.total) itensC.push("TOTAL ESTIMADO: " + c.total);
+        if (c.observacao) itensC.push(c.observacao);
+        if (itensC.length) caixa(OURO, OURO_TINTA, "Quanto custa a viagem (estimativa por pessoa, do Brasil)", itensC);
+      }
+
       // ---- Dias ----
       let fotoPtr = 0;
       r.dias.forEach(d => {
@@ -1694,6 +1773,19 @@ Crie uma NOVA versão desse dia, diferente da atual, com a mesma qualidade.
       if (!el) return;
       el.textContent = msg;
       setTimeout(() => { el.textContent = ""; }, 3000);
+    }
+
+    // Abre o WhatsApp do Rafa Milhas com um resumo do roteiro (captura de lead)
+    function enviarWhatsAppRafa() {
+      const r = roteiroAtual;
+      if (!r) return;
+      const nDias = (r.dias && r.dias.length) || 0;
+      const nViaj = r.viajantes || 1;
+      const msg =
+        "Olá, Rafa Milhas! 🗺️ Acabei de montar um roteiro de " + nDias + (nDias === 1 ? " dia" : " dias") +
+        " para " + r.destino + " (" + nViaj + (nViaj > 1 ? " viajantes" : " viajante") + ") na ferramenta de vocês. " +
+        "Quero receber este roteiro e ajuda para emitir as passagens com milhas. ✈️";
+      window.open("https://wa.me/5521998974430?text=" + encodeURIComponent(msg), "_blank", "noopener");
     }
 
     // ===== Conversor de moedas (cotação em tempo real, gratuito) =====
