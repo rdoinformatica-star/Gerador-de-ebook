@@ -900,7 +900,10 @@
           const detalhe = (data && data.error) ? data.error : "";
           const ehLimite = resp.status === 429 || /quota|rate|resource_exhausted|exceeded|limit/i.test(detalhe);
           if (ehLimite) {
-            throw new Error("⏳ Muitos pedidos à inteligência artificial neste momento. Espere cerca de 1 minutinho e tente de novo. (Se acontecer o dia todo, pode ser o limite diário do plano gratuito, que renova de madrugada.)");
+            const diario = /per\s*day|perday|daily|requestsperday|per-day|\bday\b|di[aá]ri/i.test(detalhe);
+            throw new Error(diario
+              ? "⏳ O limite DIÁRIO gratuito da inteligência artificial foi atingido — ele renova automaticamente de madrugada. Para gerar sem esperar, ative o faturamento no Google AI Studio (a IA continua barata) ou adicione mais chaves."
+              : "⏳ Muitos pedidos à inteligência artificial neste momento (limite por minuto). Espere cerca de 1 minutinho e tente de novo.");
           }
           ultimoErro = detalhe || ("Erro " + resp.status);
           if (resp.status >= 500) { await espera(1200); continue; } // servidor: tenta de novo

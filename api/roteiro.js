@@ -45,55 +45,66 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "Servidor sem chave da IA configurada (GEMINI_KEY)." });
   }
 
-  // 3) Monta a requisição para o Gemini
-  const modelo = "gemini-2.5-flash";
-  const corpo = {
-    contents: [{ parts: [{ text: prompt }] }],
-    generationConfig: { maxOutputTokens: 16384 }
-  };
-  if (aoVivo) {
-    corpo.tools = [{ google_search: {} }]; // busca na web
-  } else if (schema) {
-    corpo.generationConfig.responseMimeType = "application/json";
-    corpo.generationConfig.responseSchema = schema;
-  }
-  const bodyStr = JSON.stringify(corpo);
-
-  // 4) Tenta cada chave; se uma estiver no limite (429), passa para a próxima.
-  //    Começa em um ponto aleatório para distribuir a carga entre as chaves.
-  const inicio = Math.floor(Math.random() * keys.length);
-  let ultimoLimite = null;
-  for (let i = 0; i < keys.length; i++) {
-    const key = keys[(inicio + i) % keys.length];
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${encodeURIComponent(key)}`;
-      const r = await fetch(url, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: bodyStr
-      });
-      const j = await r.json();
-      if (r.status === 429) {
-        // chave no limite -> guarda e tenta a próxima
-        ultimoLimite = (j && j.error && j.error.message) || "Limite atingido.";
-        continue;
-      }
-      if (!r.ok) {
-        const detalhe = (j && j.error && j.error.message) || JSON.stringify(j);
-        return res.status(r.status).json({ error: detalhe });
-      }
-      const cand = j.candidates && j.candidates[0];
-      let texto = "";
-      if (cand && cand.content && cand.content.parts) {
-        texto = cand.content.parts.map(p => p.text || "").join("");
-      }
-      return res.status(200).json({ text: texto });
-    } catch (e) {
-      ultimoLimite = "Falha ao contatar a IA: " + (e.message || e);
-      // erro nessa chave -> tenta a próxima também
+  // 3) Monta o corpo da requisição para o Gemini
+  function montarCorpo(usarBusca) {
+    const corpo = {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { maxOutputTokens: 16384 }
+    };
+    if (usarBusca) {
+      corpo.tools = [{ google_search: {} }]; // busca na web (grounding)
+    } else if (schema) {
+      corpo.generationConfig.responseMimeType = "application/json";
+      corpo.generationConfig.responseSchema = schema;
     }
+    return corpo;
   }
 
-  // Todas as chaves atingiram o limite ou falharam
-  return res.status(429).json({ error: ultimoLimite || "Todas as chaves atingiram o limite. Tente novamente em 1 minuto." });
+  // Ordem de tentativas — degrada com elegância quando bate o limite (429):
+  //   1) modelo principal, COM busca na web se o usuário pediu
+  //   2) modelo principal SEM busca (o grounding do Google Search tem cota
+  //      gratuita separada e bem menor — costuma ser o primeiro a estourar)
+  //   3) modelo "lite" (limites gratuitos maiores), sem busca
+  const tentativas = [{ modelo: "gemini-2.5-flash", busca: !!aoVivo }];
+  if (aoVivo) tentativas.push({ modelo: "gemini-2.5-flash", busca: false });
+  tentativas.push({ modelo: "gemini-2.5-flash-lite", busca: false });
+
+  // 4) Executa as tentativas; dentro de cada uma, roda todas as chaves (rotação
+  //    a partir de um ponto aleatório para distribuir a carga).
+  let erroFinal = null, statusFinal = 429;
+  for (const t of tentativas) {
+    const bodyStr = JSON.stringify(montarCorpo(t.busca));
+    const inicio = Math.floor(Math.random() * keys.length);
+    for (let i = 0; i < keys.length; i++) {
+      const key = keys[(inicio + i) % keys.length];
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${t.modelo}:generateContent?key=${encodeURIComponent(key)}`;
+        const r = await fetch(url, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: bodyStr
+        });
+        const j = await r.json();
+        if (r.ok) {
+          const cand = j.candidates && j.candidates[0];
+          let texto = "";
+          if (cand && cand.content && cand.content.parts) {
+            texto = cand.content.parts.map(p => p.text || "").join("");
+          }
+          return res.status(200).json({ text: texto });
+        }
+        erroFinal = (j && j.error && j.error.message) || JSON.stringify(j);
+        statusFinal = r.status;
+        if (r.status === 429) continue; // esta chave no limite -> tenta a próxima chave
+        break;                          // outro erro -> parte para a próxima tentativa (fallback)
+      } catch (e) {
+        erroFinal = "Falha ao contatar a IA: " + (e.message || e);
+        statusFinal = 502;
+      }
+    }
+    // esta tentativa não retornou sucesso -> segue para o fallback seguinte
+  }
+
+  // Nada funcionou: repassa o melhor erro que obtivemos
+  return res.status(statusFinal).json({ error: erroFinal || "Todas as chaves atingiram o limite. Tente novamente em 1 minuto." });
 }
