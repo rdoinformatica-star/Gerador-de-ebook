@@ -645,6 +645,7 @@
         <button class="btn btn-ghost btn-small" id="btn-whatsapp" style="display:none" onclick="compartilharWhatsApp()">📱 WhatsApp (PDF)</button>
         <button class="btn btn-ghost btn-small" onclick="copiarTexto()">📋 Copiar</button>
         <button class="btn btn-ghost btn-small" onclick="baixarPdf()">⬇️ PDF</button>
+        <button class="btn btn-ghost btn-small" onclick="baixarAgenda()">🗓️ Agenda</button>
         <button class="btn btn-ghost btn-small" onclick="novo()">🔄 Novo</button>
       </div>
       <div class="no-print" style="text-align:right; margin-bottom:14px">
@@ -1786,6 +1787,62 @@ Crie uma NOVA versão desse dia, diferente da atual, com a mesma qualidade.
         " para " + r.destino + " (" + nViaj + (nViaj > 1 ? " viajantes" : " viajante") + ") na ferramenta de vocês. " +
         "Quero receber este roteiro e ajuda para emitir as passagens com milhas. ✈️";
       window.open("https://wa.me/5521998974430?text=" + encodeURIComponent(msg), "_blank", "noopener");
+    }
+
+    // ===== Exportar o roteiro para o Google Agenda / Apple Calendário (.ics) =====
+    function baixarAgenda() {
+      const r = roteiroAtual;
+      if (!r || !r.dias || !r.dias.length) return;
+      const pad = n => String(n).padStart(2, "0");
+      // data/hora "flutuante" (sem fuso) — o calendário mostra na hora local
+      const fmt = dt => dt.getFullYear() + pad(dt.getMonth() + 1) + pad(dt.getDate()) +
+        "T" + pad(dt.getHours()) + pad(dt.getMinutes()) + "00";
+      const esc = t => (t || "").replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+      const horaBase = p => {
+        const s = (p || "").toLowerCase();
+        if (s.includes("manh")) return 9;
+        if (s.includes("tard")) return 14;
+        if (s.includes("noit") || s.includes("notur")) return 19;
+        return 10;
+      };
+      // base: data informada ou hoje (dia 1 = hoje)
+      const base = r.dataInicio ? new Date(r.dataInicio + "T00:00:00") : new Date(new Date().toDateString());
+      const linhas = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Rafa Milhas//Gerador de Roteiros//PT-BR", "CALSCALE:GREGORIAN"];
+      let uid = 0;
+      r.dias.forEach((dia, di) => {
+        const contador = {};
+        (dia.atividades || []).forEach(a => {
+          const h = horaBase(a.periodo);
+          const i = contador[h] = (contador[h] || 0);
+          contador[h] = i + 1;
+          const ini = new Date(base);
+          ini.setDate(base.getDate() + di);
+          ini.setHours(h, 0, 0, 0);
+          ini.setMinutes(i * 105); // escalona atividades do mesmo período
+          const fim = new Date(ini.getTime() + 90 * 60000);
+          const desc = [a.tipo, a.preco_estimado, a.descricao].filter(Boolean).join(" — ");
+          linhas.push(
+            "BEGIN:VEVENT",
+            "UID:roteiro-" + Date.now() + "-" + (uid++) + "@rafamilhas",
+            "DTSTAMP:" + fmt(new Date()),
+            "DTSTART:" + fmt(ini),
+            "DTEND:" + fmt(fim),
+            "SUMMARY:" + esc("Dia " + dia.dia + ": " + (a.nome || "")),
+            "DESCRIPTION:" + esc(desc),
+            "LOCATION:" + esc((a.nome || "") + ", " + r.destino),
+            "END:VEVENT"
+          );
+        });
+      });
+      linhas.push("END:VCALENDAR");
+      const blob = new Blob([linhas.join("\r\n")], { type: "text/calendar;charset=utf-8" });
+      const nome = "roteiro-" + (r.destino || "viagem").replace(/[^\w]+/g, "-").toLowerCase() + ".ics";
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url; link.download = nome;
+      document.body.appendChild(link); link.click(); document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+      feedback(r.dataInicio ? "✓ Agenda (.ics) baixada! Abra no Google Agenda." : "✓ Agenda (.ics) baixada (a partir de hoje — ajuste as datas se quiser).");
     }
 
     // ===== Conversor de moedas (cotação em tempo real, gratuito) =====
