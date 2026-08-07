@@ -1470,13 +1470,18 @@ Crie uma NOVA versão desse dia, diferente da atual, com a mesma qualidade.
       // ---- Dias ----
       let fotoPtr = 0;
       r.dias.forEach(d => {
-        novaPaginaSe(50);
+        // título do dia: mede as linhas e faz a faixa CRESCER (evita cortar quando quebra em 2+ linhas)
+        const tituloDia = "Dia " + d.dia + "  -  " + (d.titulo || "") + (d.regiao ? "   |   " + d.regiao : "");
+        doc.setFont("helvetica", "bold"); doc.setFontSize(12.5);
+        const linhasDia = doc.splitTextToSize(tituloDia, cw - 24);
+        const bandDiaH = Math.max(28, 10 + linhasDia.length * 15);
+        novaPaginaSe(bandDiaH + 14);
         doc.setFillColor.apply(doc, CIANO);
-        doc.roundedRect(m, y, cw, 28, 6, 6, "F");
-        doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(12.5);
-        doc.text("Dia " + d.dia + "  -  " + (d.titulo || "") + (d.regiao ? "   |   " + d.regiao : ""),
-          m + 12, y + 18, { maxWidth: cw - 24 });
-        y += 42;
+        doc.roundedRect(m, y, cw, bandDiaH, 6, 6, "F");
+        doc.setTextColor(255, 255, 255);
+        let yDia = y + (bandDiaH - (linhasDia.length - 1) * 15) / 2 + 4;
+        linhasDia.forEach(l => { doc.text(l, m + 12, yDia); yDia += 15; });
+        y += bandDiaH + 14;
 
         (d.atividades || []).forEach((a, idxA) => {
           const foto = fotos[fotoPtr++];
