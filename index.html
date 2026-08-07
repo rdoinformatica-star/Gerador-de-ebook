@@ -1090,7 +1090,7 @@ Crie uma NOVA versão desse dia, diferente da atual, com a mesma qualidade.
             <button class="btn btn-ghost btn-small no-print" style="margin:0 0 12px 8px" onclick="regerarDia(${diaIdx})">🔄 Trocar este dia</button>`;
         dia.atividades.forEach((a, actIdx) => {
           const imgId = "img-" + imgsParaBuscar.length;
-          imgsParaBuscar.push({ id: imgId, termo: a.termo_foto });
+          imgsParaBuscar.push({ id: imgId, termo: a.termo_foto, destino: r.destino });
           const mapsUrl = "https://www.google.com/maps/search/?api=1&query=" +
             encodeURIComponent(a.nome + ", " + r.destino);
           const avaliacoesUrl = "https://www.google.com/search?q=" +
@@ -1204,56 +1204,81 @@ Crie uma NOVA versão desse dia, diferente da atual, com a mesma qualidade.
     }
 
     // Busca uma foto grande do destino para o banner (Wikipédia, grátis)
+    // ===== Relevância da foto (evita imagens sem relação, ex.: a foto de uma
+    //       pessoa aparecendo ao lado de um restaurante) =====
+    const STOP_FOTO = new Set(["de","do","da","dos","das","no","na","em","the","of","and","los","las","el","la","le","du","des","restaurante","restaurant","jantar","almoco","cafe","bar","hotel","pousada","parque","park","museu","museum","praia","beach","rua","avenida","tour","passeio","visita","centro"]);
+    function _tokensFoto(s) {
+      return (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+        .replace(/[^a-z0-9\s]/g, " ").split(/\s+/)
+        .filter(w => w.length >= 3 && !STOP_FOTO.has(w));
+    }
+    function _fotoRelevante(alvoTokens, titulo) {
+      const t = _tokensFoto(titulo);
+      return alvoTokens.some(w => t.includes(w));
+    }
+    // Descrição do Wikidata que indica PESSOA -> a imagem quase sempre é um retrato
+    function _ehPessoa(desc) {
+      return /\b(actor|actress|singer|presenter|politician|footballer|player|writer|author|model|host|comedian|rapper|dancer|painter|artist|band|duo|actriz|atriz|ator|cantor|cantora|apresentador|apresentadora|jogador|jogadora|pol[ií]tic[oa]|escritor|escritora|modelo|humorista|m[uú]sic[oa]|banda|dupla|nascid[oa]|born)\b/i.test(desc || "");
+    }
+
+    // Procura na Wikipédia (grátis) uma imagem REALMENTE relacionada ao termo.
+    // Só aceita a foto se o título da página casar com o termo e não for pessoa.
+    async function _acharImagemWiki(termo, destino, tam) {
+      const alvo = _tokensFoto(termo);
+      if (!alvo.length) return null; // termo sem palavra útil: não arrisca
+      const buscas = [termo];
+      if (destino) {
+        const cidade = String(destino).split(",")[0].trim();
+        if (cidade && termo.toLowerCase().indexOf(cidade.toLowerCase()) < 0) buscas.push(termo + " " + cidade);
+      }
+      for (const lang of ["pt", "en"]) {
+        for (const q of buscas) {
+          try {
+            const su = `https://${lang}.wikipedia.org/w/api.php?action=query&format=json` +
+              `&list=search&srsearch=${encodeURIComponent(q)}&srlimit=6&srnamespace=0&origin=*`;
+            const sj = await (await fetch(su)).json();
+            const hits = (sj.query && sj.query.search) || [];
+            // pega o 1º resultado ranqueado cujo TÍTULO tenha relação com o termo
+            const hit = hits.find(h => _fotoRelevante(alvo, h.title));
+            if (!hit) continue;
+            const iu = `https://${lang}.wikipedia.org/w/api.php?action=query&format=json` +
+              `&prop=pageimages|description&piprop=thumbnail&pithumbsize=${tam}` +
+              `&titles=${encodeURIComponent(hit.title)}&origin=*`;
+            const ij = await (await fetch(iu)).json();
+            const pages = ij.query && ij.query.pages;
+            const page = pages && Object.values(pages)[0];
+            if (!page || !page.thumbnail || !page.thumbnail.source) continue;
+            if (_ehPessoa(page.description)) continue; // retrato de pessoa: descarta
+            return { src: page.thumbnail.source };
+          } catch (e) { /* tenta próxima busca/idioma */ }
+        }
+      }
+      return null;
+    }
+
+    // Foto grande do destino para o banner (capa)
     async function buscarCapa(termo, elId) {
       const el = document.getElementById(elId);
       if (!el) return;
-      for (const lang of ["pt", "en"]) {
-        try {
-          const url = `https://${lang}.wikipedia.org/w/api.php?action=query&format=json` +
-            `&prop=pageimages&piprop=thumbnail&pithumbsize=1000` +
-            `&generator=search&gsrsearch=${encodeURIComponent(termo)}&gsrlimit=1&origin=*`;
-          const r = await fetch(url);
-          const j = await r.json();
-          const pages = j && j.query && j.query.pages;
-          if (pages) {
-            const page = Object.values(pages)[0];
-            if (page && page.thumbnail && page.thumbnail.source) {
-              el.style.backgroundImage = `url("${page.thumbnail.source}")`;
-              return;
-            }
-          }
-        } catch (e) { /* tenta o próximo idioma */ }
-      }
+      const achou = await _acharImagemWiki(termo, null, 1000);
+      if (achou) el.style.backgroundImage = `url("${achou.src}")`;
     }
 
-    // ===== Buscar foto na Wikipédia (grátis, sem chave) =====
-    async function buscarFoto(termo, elementId) {
-      for (const lang of ["pt", "en"]) {
-        try {
-          const url = `https://${lang}.wikipedia.org/w/api.php?action=query&format=json` +
-            `&prop=pageimages&piprop=thumbnail&pithumbsize=400` +
-            `&generator=search&gsrsearch=${encodeURIComponent(termo)}&gsrlimit=1&origin=*`;
-          const r = await fetch(url);
-          const j = await r.json();
-          const pages = j && j.query && j.query.pages;
-          if (pages) {
-            const page = Object.values(pages)[0];
-            if (page && page.thumbnail && page.thumbnail.source) {
-              const el = document.getElementById(elementId);
-              if (el) {
-                const img = document.createElement("img");
-                img.src = page.thumbnail.source;
-                img.alt = termo;
-                el.replaceWith(img);
-              }
-              return;
-            }
-          }
-        } catch (e) { /* tenta o próximo idioma */ }
-      }
-      // Sem foto encontrada
+    // Miniatura de cada atividade — só mostra se a imagem tiver relação
+    async function buscarFoto(termo, elementId, destino) {
+      const achou = await _acharImagemWiki(termo, destino, 400);
       const el = document.getElementById(elementId);
-      if (el) el.textContent = "sem foto";
+      if (!el) return;
+      if (achou) {
+        const img = document.createElement("img");
+        img.src = achou.src;
+        img.alt = termo || "";
+        img.loading = "lazy";
+        img.onerror = () => { const d = document.createElement("div"); d.className = "sem-foto"; d.textContent = "sem foto"; img.replaceWith(d); };
+        el.replaceWith(img);
+      } else {
+        el.textContent = "sem foto"; // melhor sem foto do que uma imagem sem relação
+      }
     }
 
     // Busca várias fotos limitando quantas rodam ao mesmo tempo
@@ -1262,7 +1287,7 @@ Crie uma NOVA versão desse dia, diferente da atual, com a mesma qualidade.
       async function worker() {
         while (i < itens.length) {
           const it = itens[i++];
-          await buscarFoto(it.termo, it.id);
+          await buscarFoto(it.termo, it.id, it.destino);
         }
       }
       const n = Math.min(max || 4, itens.length);
