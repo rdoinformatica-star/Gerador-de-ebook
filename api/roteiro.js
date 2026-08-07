@@ -64,14 +64,14 @@ export default async function handler(req, res) {
   //   1) modelo principal, COM busca na web se o usuário pediu
   //   2) modelo principal SEM busca (o grounding do Google Search tem cota
   //      gratuita separada e bem menor — costuma ser o primeiro a estourar)
-  //   3) modelo "lite" (limites gratuitos maiores), sem busca
+  //   3) modelo alternativo (cota gratuita separada), sem busca
   const tentativas = [{ modelo: "gemini-2.5-flash", busca: !!aoVivo }];
   if (aoVivo) tentativas.push({ modelo: "gemini-2.5-flash", busca: false });
-  tentativas.push({ modelo: "gemini-2.5-flash-lite", busca: false });
+  tentativas.push({ modelo: "gemini-2.0-flash", busca: false });
 
   // 4) Executa as tentativas; dentro de cada uma, roda todas as chaves (rotação
   //    a partir de um ponto aleatório para distribuir a carga).
-  let erroFinal = null, statusFinal = 429;
+  let erroFinal = null, statusFinal = 429, limite429 = null;
   for (const t of tentativas) {
     const bodyStr = JSON.stringify(montarCorpo(t.busca));
     const inicio = Math.floor(Math.random() * keys.length);
@@ -93,10 +93,11 @@ export default async function handler(req, res) {
           }
           return res.status(200).json({ text: texto });
         }
-        erroFinal = (j && j.error && j.error.message) || JSON.stringify(j);
+        const msg = (j && j.error && j.error.message) || JSON.stringify(j);
+        erroFinal = msg;
         statusFinal = r.status;
-        if (r.status === 429) continue; // esta chave no limite -> tenta a próxima chave
-        break;                          // outro erro -> parte para a próxima tentativa (fallback)
+        if (r.status === 429) { if (!limite429) limite429 = msg; continue; } // chave no limite -> próxima chave
+        break;                          // outro erro (ex.: modelo indisponível) -> próximo fallback
       } catch (e) {
         erroFinal = "Falha ao contatar a IA: " + (e.message || e);
         statusFinal = 502;
@@ -105,6 +106,8 @@ export default async function handler(req, res) {
     // esta tentativa não retornou sucesso -> segue para o fallback seguinte
   }
 
-  // Nada funcionou: repassa o melhor erro que obtivemos
-  return res.status(statusFinal).json({ error: erroFinal || "Todas as chaves atingiram o limite. Tente novamente em 1 minuto." });
+  // Nada funcionou: se em ALGUM momento foi limite (429), reporta isso (é a causa
+  // real p/ o usuário) em vez de um erro de fallback (ex.: modelo indisponível).
+  if (limite429) return res.status(429).json({ error: limite429 });
+  return res.status(statusFinal).json({ error: erroFinal || "Não foi possível gerar agora. Tente novamente." });
 }
