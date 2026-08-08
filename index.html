@@ -16,27 +16,27 @@
        Navy #081320 + Dourado #d4af37 · Playfair + Montserrat
        ========================================================= */
     :root {
-      /* ---- LIGHT premium (tema alternativo) ---- */
-      --bg: #eef1f6;
-      --bg-2: #e6eaf1;
+      /* ---- LIGHT premium (reforçado: mais contraste e bordas definidas) ---- */
+      --bg: #e6eaf2;
+      --bg-2: #dbe1ec;
       --surface: #ffffff;
-      --surface-2: #f6f8fb;
-      --text: #12203a;
-      --text-2: #46566e;
-      --text-3: #7a8699;
-      --line: rgba(16,32,60,.10);
-      --line-gold: rgba(184,134,11,.34);
+      --surface-2: #eef2f8;
+      --text: #0c1826;
+      --text-2: #35455d;
+      --text-3: #5d6b83;
+      --line: rgba(12,24,44,.24);
+      --line-gold: rgba(176,128,10,.55);
       --input-bg: #ffffff;
-      --glass: rgba(255,255,255,.72);
-      --glass-border: rgba(16,32,60,.08);
-      --nav-bg: rgba(255,255,255,.78);
-      --shadow-card: 0 16px 40px -26px rgba(16,32,60,.42);
+      --glass: rgba(255,255,255,.82);
+      --glass-border: rgba(12,24,44,.16);
+      --nav-bg: rgba(255,255,255,.88);
+      --shadow-card: 0 12px 28px -16px rgba(12,24,44,.55);
       --gold: #b8860b;
-      --gold-ink: #9a6f08;
+      --gold-ink: #856006;
       --on-gold: #0b1626;
-      --emerald: #1f7a4d;
-      --sky: #2f6ab0;
-      --hero-ink: #12203a;
+      --emerald: #17693f;
+      --sky: #285d9e;
+      --hero-ink: #0c1826;
 
       /* ---- tokens comuns ---- */
       --gold-500: #d4af37;
@@ -221,6 +221,22 @@
     /* corrige o dropdown nativo (popup dos meses etc.): fundo/texto legíveis nos 2 temas */
     select option { background-color: var(--surface); color: var(--text); }
     select option:checked { background-color: color-mix(in srgb, var(--gold) 22%, var(--surface)); color: var(--text); }
+
+    /* ===== Reforço APENAS no tema claro (bordas mais grossas/definidas, cards mais nítidos) ===== */
+    body:not(.dark) input[type="text"],
+    body:not(.dark) input[type="number"],
+    body:not(.dark) input[type="password"],
+    body:not(.dark) input[type="date"],
+    body:not(.dark) select,
+    body:not(.dark) textarea { border-width: 2px; border-color: rgba(12,24,44,.32); }
+    body:not(.dark) .chip { border-width: 2px; }
+    body:not(.dark) .card { border-color: rgba(12,24,44,.20); }
+    body:not(.dark) .atividade,
+    body:not(.dark) .dia-titulo,
+    body:not(.dark) .clima-card,
+    body:not(.dark) .custo-card,
+    body:not(.dark) .conversor { border-color: rgba(12,24,44,.20); }
+    body:not(.dark) .rm-nav { border-bottom-width: 2px; }
 
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     @media (max-width: 640px) { .row { grid-template-columns: 1fr; } }
