@@ -16,27 +16,27 @@
        Navy #081320 + Dourado #d4af37 · Playfair + Montserrat
        ========================================================= */
     :root {
-      /* ---- LIGHT premium (reforçado: mais contraste e bordas definidas) ---- */
-      --bg: #e6eaf2;
-      --bg-2: #dbe1ec;
+      /* ---- LIGHT premium (pretos pesados: máximo contraste e bordas fortes) ---- */
+      --bg: #e3e7ef;
+      --bg-2: #d4dae7;
       --surface: #ffffff;
-      --surface-2: #eef2f8;
-      --text: #0c1826;
-      --text-2: #35455d;
-      --text-3: #5d6b83;
-      --line: rgba(12,24,44,.24);
-      --line-gold: rgba(176,128,10,.55);
+      --surface-2: #e9eef6;
+      --text: #060d16;
+      --text-2: #222d3c;
+      --text-3: #4c586d;
+      --line: rgba(6,13,22,.34);
+      --line-gold: rgba(176,128,10,.6);
       --input-bg: #ffffff;
-      --glass: rgba(255,255,255,.82);
-      --glass-border: rgba(12,24,44,.16);
-      --nav-bg: rgba(255,255,255,.88);
-      --shadow-card: 0 12px 28px -16px rgba(12,24,44,.55);
+      --glass: rgba(255,255,255,.84);
+      --glass-border: rgba(6,13,22,.22);
+      --nav-bg: rgba(255,255,255,.9);
+      --shadow-card: 0 14px 30px -16px rgba(6,13,22,.62);
       --gold: #b8860b;
-      --gold-ink: #856006;
+      --gold-ink: #785705;
       --on-gold: #0b1626;
-      --emerald: #17693f;
-      --sky: #285d9e;
-      --hero-ink: #0c1826;
+      --emerald: #135c37;
+      --sky: #23548f;
+      --hero-ink: #060d16;
 
       /* ---- tokens comuns ---- */
       --gold-500: #d4af37;
@@ -228,14 +228,15 @@
     body:not(.dark) input[type="password"],
     body:not(.dark) input[type="date"],
     body:not(.dark) select,
-    body:not(.dark) textarea { border-width: 2px; border-color: rgba(12,24,44,.32); }
-    body:not(.dark) .chip { border-width: 2px; }
-    body:not(.dark) .card { border-color: rgba(12,24,44,.20); }
+    body:not(.dark) textarea { border-width: 2px; border-color: rgba(6,13,22,.46); }
+    body:not(.dark) .chip { border-width: 2px; border-color: rgba(6,13,22,.34); }
+    body:not(.dark) .card { border-width: 2px; border-color: rgba(6,13,22,.30); }
     body:not(.dark) .atividade,
     body:not(.dark) .dia-titulo,
     body:not(.dark) .clima-card,
     body:not(.dark) .custo-card,
-    body:not(.dark) .conversor { border-color: rgba(12,24,44,.20); }
+    body:not(.dark) .conversor { border-color: rgba(6,13,22,.28); }
+    body:not(.dark) label { color: var(--text); }
     body:not(.dark) .rm-nav { border-bottom-width: 2px; }
 
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
