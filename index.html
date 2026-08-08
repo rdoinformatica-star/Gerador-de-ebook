@@ -118,7 +118,11 @@
       display: flex; align-items: center; gap: 18px;
     }
     .brand { display: inline-flex; align-items: center; gap: 12px; text-decoration: none; flex-shrink: 0; }
-    .brand img { display: block; height: 40px; width: auto; }
+    .brand-logos { position: relative; display: inline-block; height: 40px; flex-shrink: 0; }
+    .brand-logo { display: block; height: 40px; width: auto; transition: opacity .45s var(--ease); }
+    .brand-logo.logo-light { position: absolute; top: 0; left: 0; opacity: 0; }
+    body:not(.dark) .brand-logo.logo-dark { opacity: 0; }
+    body:not(.dark) .brand-logo.logo-light { opacity: 1; }
     .brand-text { display: none; align-items: baseline; gap: 3px; font-family: var(--font-display); font-weight: 700; font-size: 21px; color: var(--text); letter-spacing: .04em; }
     .brand-text span { color: var(--gold); }
     .breadcrumb { display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--text-3); padding-left: 16px; border-left: 1px solid var(--line); }
@@ -496,7 +500,10 @@
   <header class="rm-nav no-print">
     <div class="rm-nav-inner">
       <a class="brand" href="https://rafa-milhas-2.vercel.app" target="_blank" rel="noopener" aria-label="Rafa Milhas — início">
-        <img src="https://rafa-milhas-2.vercel.app/logo/logo-nav.png" alt="Rafa Milhas" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-flex'">
+        <span class="brand-logos">
+          <img class="brand-logo logo-dark" src="logo/logo-nav.png" alt="Rafa Milhas" onerror="this.closest('.brand-logos').style.display='none';this.closest('.brand').querySelector('.brand-text').style.display='inline-flex'">
+          <img class="brand-logo logo-light" src="logo/logo-nav-light.png" alt="" aria-hidden="true">
+        </span>
         <span class="brand-text">RAFA<span>MILHAS</span></span>
       </a>
       <div class="breadcrumb"><span>Ferramentas</span><span class="sep">/</span><b>Gerador de Roteiros</b></div>
